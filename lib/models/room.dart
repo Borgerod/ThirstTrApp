@@ -11,8 +11,8 @@ class Room {
     this.temperatureC,
     this.lightMeasurementLux,
     this.lightIntensity,
-    this.facing = Facing.unknown,
-  });
+    Set<Facing>? exteriorWalls,
+  }) : exteriorWalls = exteriorWalls ?? <Facing>{};
 
   final String id;
   String name;
@@ -22,7 +22,19 @@ class Room {
   double? temperatureC;
   double? lightMeasurementLux;
   LightIntensity? lightIntensity;
-  Facing facing;
+
+  /// The cardinal directions this room has an **exterior** wall facing (toward
+  /// the outdoors). A wall between two rooms is interior and simply absent from
+  /// this set. Empty = a fully interior room with no outside walls.
+  Set<Facing> exteriorWalls;
+
+  /// The four cardinal directions a wall can face outward.
+  static const List<Facing> cardinals = [
+    Facing.north,
+    Facing.east,
+    Facing.south,
+    Facing.west,
+  ];
 
   double get effectiveTemperatureC => temperatureC ?? 21.0;
 
@@ -34,11 +46,20 @@ class Room {
       return LightIntensity.direct;
     }
     if (lightIntensity != null) return lightIntensity!;
-    final score = facing.lightFactor;
+    // No exterior walls → no daylight reaches the room → shaded.
+    if (exteriorWalls.isEmpty) return LightIntensity.shaded;
+    // Otherwise the brightest outside-facing wall sets the room's daylight.
+    final score =
+        exteriorWalls.map((f) => f.lightFactor).reduce((a, b) => a > b ? a : b);
     if (score < 0.7) return LightIntensity.shaded;
     if (score < 1.2) return LightIntensity.indirect;
     return LightIntensity.direct;
   }
+
+  /// Short human summary of the exterior walls for list rows.
+  String get wallsSummary => exteriorWalls.isEmpty
+      ? 'Kun innervegger'
+      : 'Yttervegg: ${(cardinals.where(exteriorWalls.contains).map((f) => f.label)).join(', ')}';
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -47,7 +68,7 @@ class Room {
         'temperatureC': temperatureC,
         'lightMeasurementLux': lightMeasurementLux,
         'lightIntensity': lightIntensity?.id,
-        'facing': facing.id,
+        'exteriorWalls': exteriorWalls.map((f) => f.id).toList(),
       };
 
   factory Room.fromJson(Map<String, dynamic> j) => Room(
@@ -59,6 +80,24 @@ class Room {
         lightIntensity: j['lightIntensity'] == null
             ? null
             : LightIntensity.fromId(asString(j['lightIntensity'])),
-        facing: Facing.fromId(asString(j['facing'])),
+        exteriorWalls: _wallsFromJson(j),
       );
+
+  /// Parse the wall set, migrating the legacy single `facing` field: an old
+  /// room with one cardinal facing becomes a room with that one exterior wall.
+  static Set<Facing> _wallsFromJson(Map<String, dynamic> j) {
+    final raw = j['exteriorWalls'];
+    if (raw is List) {
+      return raw
+          .map((e) => Facing.fromId(e.toString()))
+          .where((f) => f != Facing.unknown)
+          .toSet();
+    }
+    final legacy = asString(j['facing']);
+    if (legacy != null) {
+      final f = Facing.fromId(legacy);
+      if (f != Facing.unknown) return {f};
+    }
+    return {};
+  }
 }

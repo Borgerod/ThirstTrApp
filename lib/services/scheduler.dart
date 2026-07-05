@@ -3,6 +3,7 @@ import '../models/heat_source.dart';
 import '../models/plant.dart';
 import '../models/room.dart';
 import '../models/window_object.dart';
+import 'evapotranspiration.dart';
 import 'weather_api.dart';
 
 /// Everything the scheduler needs to know about a plant's surroundings.
@@ -11,17 +12,50 @@ class CareContext {
     required this.plant,
     this.room,
     this.window,
+    this.draftWindow,
     this.heatSources = const [],
+    this.roomHeatSources = const [],
     this.weather,
+    this.latitude,
     DateTime? now,
   }) : now = now ?? DateTime.now();
 
   final Plant plant;
   final Room? room;
+
+  /// The window the plant stands by (light).
   final WindowObject? window;
+
+  /// The window the plant's draft comes from (plant.draftWindowId).
+  final WindowObject? draftWindow;
+
+  /// Radiant sources the user marked the plant as "near" (local heating).
   final List<HeatSource> heatSources;
+
+  /// ALL heat sources in the plant's room — they set the ambient room
+  /// temperature whether or not the plant is near one.
+  final List<HeatSource> roomHeatSources;
+
   final WeatherSnapshot? weather;
+
+  /// Home latitude (from settings) — lets the ET model compute real daylight
+  /// hours instead of assuming them.
+  final double? latitude;
+
   final DateTime now;
+
+  /// Bundle the surroundings for the evapotranspiration engine.
+  EtInputs get etInputs => EtInputs(
+        plant: plant,
+        room: room,
+        window: window,
+        draftWindow: draftWindow,
+        nearbyHeatSources: heatSources,
+        roomHeatSources: roomHeatSources,
+        weather: weather,
+        latitude: latitude,
+        now: now,
+      );
 }
 
 /// One computed care interval + next due date with a human explanation.
@@ -31,14 +65,25 @@ class CarePlan {
     required this.intervalDays,
     required this.nextDue,
     required this.factors,
+    this.details,
+    this.quality,
   });
 
   final CareType type;
   final int intervalDays;
   final DateTime nextDue;
 
-  /// label -> multiplier, for the "why" breakdown in the UI.
+  /// label -> multiplier, for the "why" breakdown in the UI (legacy heuristic
+  /// care types: fertilizing/cleaning).
   final Map<String, double> factors;
+
+  /// Rich, pre-formatted "why" rows for physics-based estimates (watering).
+  /// label -> formatted value; preferred over [factors] when present.
+  final List<MapEntry<String, String>>? details;
+
+  /// Weakest data source behind this estimate. When [ClimateSource.statistical]
+  /// the UI should warn that the estimate is a guess and better inputs help.
+  final ClimateSource? quality;
 
   bool get isOverdue => nextDue.isBefore(DateTime.now());
 }
@@ -53,59 +98,37 @@ class Scheduler {
         LightIntensity.indirect;
   }
 
-  static double _lightFactor(LightIntensity l) => switch (l) {
-        LightIntensity.shaded => 1.2, // dries slower -> water less often
-        LightIntensity.indirect => 1.0,
-        LightIntensity.direct => 0.8, // dries faster -> water more often
-      };
-
   /// Compute the watering plan for a plant in its context.
+  ///
+  /// Physics-based: a FAO-56 Penman-Monteith evapotranspiration estimate at the
+  /// plant's resolved microclimate (see [WaterModel]) gives the daily soil-water
+  /// loss; the interval is how long the pot's readily-available reserve lasts.
+  /// A user-set override on the plant short-circuits the model.
   static CarePlan watering(CareContext c) {
-    final base = c.plant.intervals.waterDays ?? c.plant.species?.baseWateringDays ?? 7;
-    final factors = <String, double>{};
-
-    final light = resolveLight(c);
-    factors['Lys (${light.label})'] = _lightFactor(light);
-
-    final season = WeatherApi.seasonFor(c.now);
-    factors['Sesong'] = WeatherApi.seasonFactor(season);
-
-    if (c.weather != null) {
-      factors['Vær'] = c.weather!.wateringFactor;
-      if (c.weather!.precip24hMm > 5) {
-        factors['Regn ute'] = 1.1; // higher outdoor humidity indoors-ish
-      }
-    }
-
-    if (c.room != null) {
-      final dev = (c.room!.effectiveTemperatureC - 21) * 0.015;
-      factors['Romtemp'] = (1 - dev).clamp(0.8, 1.2);
-    }
-
-    if (c.plant.nearHeatSource || c.heatSources.isNotEmpty) {
-      final intensity = c.heatSources.isEmpty
-          ? 1.3
-          : c.heatSources.map((h) => h.effectiveIntensity).reduce((a, b) => a > b ? a : b);
-      factors['Varmekilde'] = (1 / (0.9 + intensity * 0.15)).clamp(0.7, 1.0);
-    }
-
-    if (c.plant.nearDraft || c.window?.openFrequency == OpenFrequency.often) {
-      factors['Trekk'] = 0.9;
-    }
-
-    var days = base.toDouble();
-    for (final f in factors.values) {
-      days *= f;
-    }
-    final intervalDays = days.round().clamp(1, 90);
-
     final last = c.plant.lastDoneFor(CareType.water);
-    final next = (last ?? c.now).add(Duration(days: intervalDays));
+
+    // Explicit user override always wins over the estimate.
+    final override = c.plant.intervals.waterDays;
+    if (override != null) {
+      final next = (last ?? c.now).add(Duration(days: override));
+      return CarePlan(
+        type: CareType.water,
+        intervalDays: override,
+        nextDue: last == null ? c.now : next,
+        factors: const {},
+        details: [const MapEntry('Kilde', 'Manuelt satt intervall')],
+      );
+    }
+
+    final est = WaterModel.estimate(c.etInputs);
+    final next = (last ?? c.now).add(Duration(days: est.intervalDays));
     return CarePlan(
       type: CareType.water,
-      intervalDays: intervalDays,
+      intervalDays: est.intervalDays,
       nextDue: last == null ? c.now : next,
-      factors: factors,
+      factors: const {},
+      details: est.breakdown,
+      quality: est.quality,
     );
   }
 

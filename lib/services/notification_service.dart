@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
@@ -109,6 +110,10 @@ class NotificationService {
   /// Schedule a care reminder at the task's due date (at [hour]).
   Future<void> scheduleTask(CareTask task, String plantName,
       {int hour = 9}) async {
+    // Browsers can't schedule future local notifications (needs a push
+    // server); the web plugin throws on zonedSchedule. Tasks still appear in
+    // the in-app task list — only the OS reminder is skipped.
+    if (kIsWeb) return;
     final notifId = task.notificationId;
     if (notifId == null) return;
     final due = task.dueDate;

@@ -3,9 +3,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/enums.dart';
 import '../../core/format.dart';
 import '../../data/providers.dart';
 import '../../models/plant.dart';
+import '../../services/evapotranspiration.dart';
+import '../../services/mestergronn_api.dart';
 import '../../services/scheduler.dart';
 import '../widgets/care_circles.dart';
 import 'plant_edit_screen.dart';
@@ -45,7 +48,8 @@ class PlantDetailScreen extends ConsumerWidget {
           if (plant.species?.imageUrl != null)
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: Image.network(plant.species!.imageUrl!,
+              child: Image.network(
+                  MestergronnApi.displayImage(plant.species!.imageUrl)!,
                   height: 200, width: double.infinity, fit: BoxFit.cover,
                   errorBuilder: (_, _, _) => const SizedBox()),
             ),
@@ -69,6 +73,7 @@ class PlantDetailScreen extends ConsumerWidget {
                         ref.watch(careContextProvider(plantId)) ??
                             CareContext(plant: plant))
                     .label),
+            _row('Underlag', plant.onFloor ? 'På gulvet' : 'Hevet fra gulv'),
             _row('Nær trekk', (plant.nearDraft) ? 'Ja' : 'Nei'),
             _row('Nær varmekilde', (plant.nearHeatSource) ? 'Ja' : 'Nei'),
           ]),
@@ -96,7 +101,8 @@ class PlantDetailScreen extends ConsumerWidget {
 
           if (plant.species != null) _aboutCard(context, plant),
 
-          if ((plant.species?.careGuide.isNotEmpty ?? false))
+          if ((plant.species?.careTips.isNotEmpty ?? false) ||
+              (plant.species?.careGuide.isNotEmpty ?? false))
             _careGuideCard(context, plant),
 
           if (plant.species != null) _PestDiseaseCard(speciesId: plant.species!.id),
@@ -135,7 +141,22 @@ class PlantDetailScreen extends ConsumerWidget {
                 contentPadding: EdgeInsets.zero,
                 leading: Text(plan.type.emoji,
                     style: const TextStyle(fontSize: 24)),
-                title: Text(plan.type.label),
+                title: Row(
+                  children: [
+                    Text(plan.type.label),
+                    if (plan.quality == ClimateSource.statistical) ...[
+                      const SizedBox(width: 6),
+                      Tooltip(
+                        message: 'Usikkert anslag — mangler data.\n'
+                            'Legg til rom, vindu, varmekilder eller '
+                            'hjemsted for et bedre estimat.',
+                        child: Icon(Icons.warning_amber_rounded,
+                            size: 16,
+                            color: Theme.of(context).colorScheme.error),
+                      ),
+                    ],
+                  ],
+                ),
                 subtitle: Text(
                     'Hver ${plan.intervalDays}. dag · ${Fmt.relativeDue(plan.nextDue)}'),
                 trailing: FilledButton.tonal(
@@ -153,30 +174,75 @@ class PlantDetailScreen extends ConsumerWidget {
   }
 
   void _showFactors(BuildContext context, CarePlan plan) {
-    if (plan.factors.isEmpty) return;
+    // Prefer the rich physics breakdown; fall back to legacy multipliers.
+    final rows = plan.details ??
+        plan.factors.entries
+            .map((e) => MapEntry(e.key, '×${e.value.toStringAsFixed(2)}'))
+            .toList();
+    if (rows.isEmpty) return;
+    final scheme = Theme.of(context).colorScheme;
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       builder: (_) => Padding(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Hvorfor ${plan.intervalDays} dager?',
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 12),
-            for (final e in plan.factors.entries)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(e.key),
-                    Text('×${e.value.toStringAsFixed(2)}'),
-                  ],
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Hvorfor hver ${plan.intervalDays}. dag?',
+                  style: Theme.of(context).textTheme.titleMedium),
+              if (plan.type == CareType.water)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    'Estimert med Penman-Monteith fordampningsmodell.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                 ),
-              ),
-          ],
+              if (plan.quality == ClimateSource.statistical)
+                Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: scheme.errorContainer,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded,
+                          color: scheme.onErrorContainer, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Bygger delvis på statistiske antakelser. Legg til '
+                          'rom-temperatur, vindu, varmekilder eller hjemsted '
+                          'for et sikrere anslag.',
+                          style: TextStyle(color: scheme.onErrorContainer),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 12),
+              for (final e in rows)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: Text(e.key)),
+                      const SizedBox(width: 12),
+                      Text(e.value,
+                          style:
+                              const TextStyle(fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -189,7 +255,7 @@ class PlantDetailScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Stellguide (Perenual)',
+            Text('Stelletips (Mestergrønn)',
                 style: Theme.of(context)
                     .textTheme
                     .titleMedium
@@ -197,6 +263,17 @@ class PlantDetailScreen extends ConsumerWidget {
             const SizedBox(height: 12),
             CareCircles(species: plant.species!),
             const SizedBox(height: 12),
+            for (final tip in plant.species!.careTips) ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('• '),
+                  Expanded(child: Text(tip)),
+                ],
+              ),
+              const SizedBox(height: 4),
+            ],
+            // Legacy Perenual-style guide, if any snapshot still has it.
             for (final e in plant.species!.careGuide.entries) ...[
               Text(e.key, style: const TextStyle(fontWeight: FontWeight.w600)),
               Text(e.value),

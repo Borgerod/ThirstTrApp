@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import '../core/enums.dart';
 import '../models/app_settings.dart';
@@ -9,8 +8,11 @@ import '../models/heat_source.dart';
 import '../models/plant.dart';
 import '../models/room.dart';
 import '../models/window_object.dart';
+import '../services/mestergronn_api.dart';
 import '../services/notification_service.dart';
-import '../services/perenual_api.dart';
+import '../services/ocr_api.dart';
+import '../services/plant_catalog.dart';
+import '../services/plantasjen_api.dart';
 import '../services/scheduler.dart';
 import '../services/weather_api.dart';
 import 'repositories.dart';
@@ -123,32 +125,31 @@ final weatherProvider = FutureProvider<WeatherSnapshot?>((ref) async {
 });
 
 // ---------------------------------------------------------------------------
-// Perenual API (key from settings)
+// Mestergrønn API (no key required)
 // ---------------------------------------------------------------------------
 
-/// Common pests & diseases for a species (Perenual). Best-effort; empty on
-/// error or missing key.
+/// Mestergrønn has no pest/disease endpoint; kept as an empty stub so the
+/// plant-detail UI keeps compiling and simply hides the section.
 final pestDiseaseProvider =
-    FutureProvider.family<List<Map<String, dynamic>>, int>((ref, speciesId) async {
-  try {
-    return await ref.read(perenualProvider).pestDiseaseList(speciesId: speciesId);
-  } catch (_) {
-    return const [];
-  }
-});
+    FutureProvider.family<List<Map<String, dynamic>>, int>(
+        (ref, speciesId) async => const []);
 
-final perenualProvider = Provider<PerenualApi>((ref) {
-  // Prefer the key from Settings; fall back to .env (if it was loaded).
-  // `dotenv.env` throws if load() never ran, so guard on isInitialized.
-  final fromSettings =
-      ref.watch(settingsProvider.select((s) => s.perenualApiKey));
-  final fromEnv =
-      dotenv.isInitialized ? (dotenv.env['PERENUAL_API_KEY'] ?? '') : '';
-  final key = fromSettings.isNotEmpty ? fromSettings : fromEnv;
-  // Empty key is fine: PerenualApi.hasKey is false and the UI shows a
-  // friendly "add your key" notice instead of crashing.
-  return PerenualApi(key);
-});
+final mestergronnProvider =
+    Provider<MestergronnApi>((ref) => MestergronnApi());
+
+final plantasjenProvider =
+    Provider<PlantasjenApi>((ref) => PlantasjenApi());
+
+/// Unified catalogue: Mestergrønn primary, Plantasjen fallback + EAN lookup.
+final catalogProvider = Provider<PlantCatalog>(
+  (ref) => PlantCatalog(
+    ref.read(mestergronnProvider),
+    ref.read(plantasjenProvider),
+  ),
+);
+
+/// Receipt OCR (OCR.space) — see [OcrApi] for key setup.
+final ocrProvider = Provider<OcrApi>((ref) => OcrApi());
 
 // ---------------------------------------------------------------------------
 // Plants
@@ -197,12 +198,20 @@ CareContext buildContext(Ref ref, Plant p) {
   final windows = ref.read(windowsProvider);
   final heats = ref.read(heatSourcesProvider);
   final weather = ref.read(weatherProvider).value;
+  final settings = ref.read(settingsProvider);
   return CareContext(
     plant: p,
     room: _firstOrNull(rooms, (r) => r.id == p.roomId),
     window: _firstOrNull(windows, (w) => w.id == p.windowId),
+    draftWindow: _firstOrNull(windows, (w) => w.id == p.draftWindowId),
+    // "Near" = radiant sources the user picked on the plant.
     heatSources: heats.where((h) => p.heatSourceIds.contains(h.id)).toList(),
+    // Ambient = every heat source in the plant's room (cables included).
+    roomHeatSources: p.roomId == null
+        ? const []
+        : heats.where((h) => h.roomId == p.roomId).toList(),
     weather: weather,
+    latitude: settings.latitude,
   );
 }
 

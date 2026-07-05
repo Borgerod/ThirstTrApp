@@ -6,6 +6,7 @@ import '../../core/format.dart';
 import '../../data/providers.dart';
 import '../../models/plant.dart';
 import '../../models/room.dart';
+import '../../services/mestergronn_api.dart';
 import '../add_plant/add_plant_screen.dart';
 import '../plant_detail/plant_detail_screen.dart';
 import '../rooms/rooms_screen.dart';
@@ -243,7 +244,8 @@ class PlantTile extends ConsumerWidget {
       leading: CircleAvatar(
         radius: 26,
         backgroundImage: (plant.species?.imageUrl != null)
-            ? NetworkImage(plant.species!.imageUrl!)
+            ? NetworkImage(
+                MestergronnApi.displayImage(plant.species!.imageUrl)!)
             : null,
         child: plant.species?.imageUrl == null
             ? const Icon(Icons.local_florist)

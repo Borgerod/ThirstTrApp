@@ -6,6 +6,7 @@ import '../../core/plant_enums.dart';
 import '../../data/providers.dart';
 import '../../models/plant.dart';
 import '../../models/species.dart';
+import '../../services/mestergronn_api.dart';
 
 /// Create or edit a plant. Covers the spec's info block: identity, room/window/
 /// heat links, light, size/maturity/age, condition, price, receipt, hazards,
@@ -59,7 +60,19 @@ class _PlantEditScreenState extends ConsumerState<PlantEditScreen> {
       // Sensible defaults for a freshly added plant.
       _p.relativeSize ??= RelativeSize.medium;
       _p.maturityBase ??= MaturityStage.mature;
+      _p.condition ??= PlantCondition.healthy;
       _p.acquiredDate ??= DateTime.now();
+
+      // Prefill the profile from the catalogue data (`??=` so anything the user
+      // already set wins). Price is deliberately left for the user to enter.
+      final sp = widget.species;
+      if (sp != null) {
+        _p.heightCm ??= sp.standardHeightCm; // standard height unless user-set
+        if (sp.careTips.isNotEmpty) {
+          _p.tips ??= sp.careTips.map((t) => '• $t').join('\n');
+        }
+        _p.generalInfo ??= sp.description;
+      }
     }
     final iv = _p.intervals;
     _overrideIntervals = iv.waterDays != null ||
@@ -80,6 +93,12 @@ class _PlantEditScreenState extends ConsumerState<PlantEditScreen> {
     _p.priceNok = double.tryParse(_price.text.replaceAll(',', '.'));
     _p.tips = _tips.text.trim().isEmpty ? null : _tips.text.trim();
     _p.generalInfo = _info.text.trim().isEmpty ? null : _info.text.trim();
+
+    // Placement consistency: drop links that no longer apply so the model
+    // never uses stale sources.
+    if (_p.placement != RoomPlacement.window) _p.windowId = null;
+    if (!_p.nearDraft) _p.draftWindowId = null;
+    if (!_p.nearHeatSource) _p.heatSourceIds = const [];
 
     // If override is off, clear any interval values so the scheduler decides.
     if (!_overrideIntervals) {
@@ -123,7 +142,7 @@ class _PlantEditScreenState extends ConsumerState<PlantEditScreen> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: Image.network(
-                  _p.species!.imageUrl!,
+                  MestergronnApi.displayImage(_p.species!.imageUrl)!,
                   height: 160,
                   width: double.infinity,
                   fit: BoxFit.cover,
@@ -175,16 +194,6 @@ class _PlantEditScreenState extends ConsumerState<PlantEditScreen> {
             ],
             (v) => setState(() => _p.roomId = v),
           ),
-          _dropdown<String?>(
-            'Vindu',
-            _p.windowId,
-            [
-              const DropdownMenuItem(value: null, child: Text('Ingen')),
-              for (final w in windows)
-                DropdownMenuItem(value: w.id, child: Text(w.name)),
-            ],
-            (v) => setState(() => _p.windowId = v),
-          ),
           _dropdown<RoomPlacement?>(
             'Plassering i rom',
             _p.placement,
@@ -195,37 +204,116 @@ class _PlantEditScreenState extends ConsumerState<PlantEditScreen> {
             ],
             (v) => setState(() => _p.placement = v),
           ),
-          if (heats.isNotEmpty)
+          // The window link only makes sense for a plant standing by one.
+          if (_p.placement == RoomPlacement.window)
+            _dropdown<String?>(
+              'Hvilket vindu?',
+              _p.windowId,
+              [
+                const DropdownMenuItem(value: null, child: Text('Ikke valgt')),
+                for (final w in windows)
+                  DropdownMenuItem(value: w.id, child: Text(w.name)),
+              ],
+              (v) => setState(() => _p.windowId = v),
+            ),
+
+          // Elevation: a pot on a heated floor is warmed from below.
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(
+                    value: false,
+                    label: Text('Hevet fra gulv'),
+                    icon: Icon(Icons.table_bar_outlined)),
+                ButtonSegment(
+                    value: true,
+                    label: Text('På gulvet'),
+                    icon: Icon(Icons.south)),
+              ],
+              selected: {_p.onFloor},
+              onSelectionChanged: (s) => setState(() => _p.onFloor = s.first),
+            ),
+          ),
+          if (_p.onFloor &&
+              heats.any((h) =>
+                  h.roomId == _p.roomId && h.type == HeatType.heatingCable))
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Wrap(
-                spacing: 8,
-                children: [
-                  for (final h in heats)
-                    FilterChip(
-                      label: Text(h.name),
-                      selected: _p.heatSourceIds.contains(h.id),
-                      onSelected: (sel) => setState(() {
-                        final list = [..._p.heatSourceIds];
-                        sel ? list.add(h.id) : list.remove(h.id);
-                        _p.heatSourceIds = list;
-                      }),
-                    ),
-                ],
+              padding: const EdgeInsets.only(left: 4, bottom: 4),
+              child: Text(
+                'Gulvvarmen i rommet varmer pottebunnen — regnes inn i '
+                'vanningsestimatet.',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
+
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Nær trekk / luftstrøm'),
             value: _p.nearDraft,
             onChanged: (v) => setState(() => _p.nearDraft = v),
           ),
+          if (_p.nearDraft)
+            _dropdown<String?>(
+              'Trekk fra hvilket vindu?',
+              _p.draftWindowId,
+              [
+                const DropdownMenuItem(
+                    value: null, child: Text('Annet / ukjent (dør, ventil …)')),
+                for (final w in windows)
+                  DropdownMenuItem(value: w.id, child: Text(w.name)),
+              ],
+              (v) => setState(() => _p.draftWindowId = v),
+            ),
+
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Nær varmekilde'),
+            subtitle: const Text(
+                'Varmekabler telles automatisk med i romtemperaturen og '
+                'velges ikke her.'),
             value: _p.nearHeatSource,
             onChanged: (v) => setState(() => _p.nearHeatSource = v),
           ),
+          if (_p.nearHeatSource) ...[
+            // Pick WHICH radiant sources it stands near — room's own first.
+            Builder(builder: (context) {
+              final selectable = heats
+                  .where((h) =>
+                      h.type != HeatType.heatingCable &&
+                      (_p.roomId == null || h.roomId == _p.roomId))
+                  .toList();
+              if (selectable.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 4),
+                  child: Text(
+                    'Ingen varmekilder i dette rommet — legg til under '
+                    '«Rom & objekter».',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.error),
+                  ),
+                );
+              }
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final h in selectable)
+                      FilterChip(
+                        label: Text(h.name),
+                        selected: _p.heatSourceIds.contains(h.id),
+                        onSelected: (sel) => setState(() {
+                          final list = [..._p.heatSourceIds];
+                          sel ? list.add(h.id) : list.remove(h.id);
+                          _p.heatSourceIds = list;
+                        }),
+                      ),
+                  ],
+                ),
+              );
+            }),
+          ],
 
           _sectionTitle('Lys'),
           _dropdown<LightIntensity?>(
