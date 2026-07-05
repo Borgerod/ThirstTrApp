@@ -54,7 +54,7 @@ class _RoomTab extends ConsumerWidget {
               leading: const Icon(Icons.meeting_room),
               title: Text(r.name),
               subtitle: Text(
-                  '${r.effectiveTemperatureC.round()}°C · ${r.resolvedIntensity.label} · ${r.facing.label}'),
+                  '${r.effectiveTemperatureC.round()}°C · ${r.resolvedIntensity.label} · ${r.wallsSummary}'),
               trailing: IconButton(
                 icon: const Icon(Icons.delete_outline),
                 onPressed: () => ref.read(roomsProvider.notifier).delete(r.id),
@@ -73,7 +73,7 @@ class _RoomTab extends ConsumerWidget {
     final temp = TextEditingController(text: r.temperatureC?.toString() ?? '');
     final lux =
         TextEditingController(text: r.lightMeasurementLux?.toString() ?? '');
-    var facing = r.facing;
+    final walls = {...r.exteriorWalls};
     var light = r.lightIntensity;
 
     showModalBottomSheet(
@@ -93,7 +93,7 @@ class _RoomTab extends ConsumerWidget {
               _tf(size, 'Størrelse (m²)', number: true),
               _tf(temp, 'Romtemperatur (°C) — standard 21', number: true),
               _tf(lux, 'Lysmåling (lux) — valgfritt', number: true),
-              _facingDropdown(facing, (v) => setSheet(() => facing = v)),
+              _wallSelector(walls, setSheet),
               _lightDropdown(light, (v) => setSheet(() => light = v)),
               const SizedBox(height: 12),
               FilledButton(
@@ -104,7 +104,7 @@ class _RoomTab extends ConsumerWidget {
                       double.tryParse(temp.text.replaceAll(',', '.'));
                   r.lightMeasurementLux =
                       double.tryParse(lux.text.replaceAll(',', '.'));
-                  r.facing = facing;
+                  r.exteriorWalls = walls;
                   r.lightIntensity = light;
                   ref.read(roomsProvider.notifier).save(r);
                   Navigator.pop(ctx);
@@ -235,7 +235,7 @@ class _HeatTab extends ConsumerWidget {
               leading: const Icon(Icons.local_fire_department),
               title: Text(h.name),
               subtitle: Text(
-                  '${h.type.label} · spredning ${h.heatSpread.label} · intensitet ${h.heatIntensity.label}${h.roomId != null ? ' · ${rooms[h.roomId] ?? ''}' : ''}'),
+                  '${h.type.label} · ~${h.outputW.round()} W ut · mål ${h.targetC.round()}°C${h.roomId != null ? ' · ${rooms[h.roomId] ?? ''}' : ''}'),
               trailing: IconButton(
                 icon: const Icon(Icons.delete_outline),
                 onPressed: () =>
@@ -253,10 +253,9 @@ class _HeatTab extends ConsumerWidget {
     final h = heat ?? HeatSource(id: uuid.v4(), name: '');
     final name = TextEditingController(text: h.name);
     final temp = TextEditingController(text: h.tempSetting?.toString() ?? '');
+    final power = TextEditingController(text: h.ratedPowerW?.toString() ?? '');
     var roomId = h.roomId;
     var type = h.type;
-    var spread = h.heatSpread;
-    var intensity = h.heatIntensity;
     var setting = h.heatSetting;
 
     showModalBottomSheet(
@@ -277,10 +276,10 @@ class _HeatTab extends ConsumerWidget {
                 _roomDropdown(rooms, roomId, (v) => setSheet(() => roomId = v)),
                 _enumDropdown<HeatType>('Type', type, HeatType.values,
                     (e) => e.label, (v) => setSheet(() => type = v!)),
-                _enumDropdown<Level>('Varmespredning', spread, Level.values,
-                    (e) => e.label, (v) => setSheet(() => spread = v!)),
-                _enumDropdown<Level>('Varmeintensitet', intensity, Level.values,
-                    (e) => e.label, (v) => setSheet(() => intensity = v!)),
+                _tf(power,
+                    'Effekt (W) — valgfritt, står på typeskiltet '
+                    '(ellers antas ${HeatSource.defaultRatedW(type).round()} W)',
+                    number: true),
                 _enumDropdown<HeatSetting?>(
                     'Innstilling',
                     setting,
@@ -288,6 +287,14 @@ class _HeatTab extends ConsumerWidget {
                     (e) => e?.label ?? 'Ingen',
                     (v) => setSheet(() => setting = v)),
                 _tf(temp, 'Termostat (°C) — valgfritt', number: true),
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    'Varmestyrke og -spredning beregnes automatisk fra type, '
+                    'effekt og innstilling (strålingsandel + avstandsavtagning).',
+                    style: Theme.of(ctx).textTheme.bodySmall,
+                  ),
+                ),
                 const SizedBox(height: 12),
                 FilledButton(
                   onPressed: () {
@@ -296,8 +303,8 @@ class _HeatTab extends ConsumerWidget {
                         : name.text.trim();
                     h.roomId = roomId;
                     h.type = type;
-                    h.heatSpread = spread;
-                    h.heatIntensity = intensity;
+                    h.ratedPowerW =
+                        double.tryParse(power.text.replaceAll(',', '.'));
                     h.heatSetting = setting;
                     h.tempSetting =
                         double.tryParse(temp.text.replaceAll(',', '.'));
@@ -417,6 +424,40 @@ Widget _enumDropdown<T>(String label, T value, List<T> values,
 Widget _facingDropdown(Facing value, ValueChanged<Facing> onChanged) =>
     _enumDropdown<Facing>('Himmelretning', value, Facing.values,
         (e) => e.label, (v) => onChanged(v ?? Facing.unknown));
+
+/// Assign each of a room's walls to a cardinal direction (exterior/outdoor) or
+/// leave it off (interior wall shared with another room). Drives daylight.
+Widget _wallSelector(Set<Facing> walls, void Function(void Function()) setSheet) =>
+    Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: InputDecorator(
+        decoration: const InputDecoration(
+          labelText: 'Yttervegger (mot friluft)',
+          helperText: 'Velg veggene som vender ut. Innervegger lar du stå av.',
+          border: OutlineInputBorder(),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Wrap(
+            spacing: 8,
+            children: [
+              for (final f in Room.cardinals)
+                FilterChip(
+                  label: Text(f.label),
+                  selected: walls.contains(f),
+                  onSelected: (on) => setSheet(() {
+                    if (on) {
+                      walls.add(f);
+                    } else {
+                      walls.remove(f);
+                    }
+                  }),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
 
 Widget _lightDropdown(
         LightIntensity? value, ValueChanged<LightIntensity?> onChanged) =>

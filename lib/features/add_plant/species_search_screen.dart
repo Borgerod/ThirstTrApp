@@ -3,12 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
 import '../../models/species.dart';
-import '../../services/perenual_api.dart';
+import '../../services/mestergronn_api.dart';
+import '../../services/plantasjen_api.dart';
 
-/// Search the Perenual species list. Returns the chosen [Species] (enriched
-/// with care guide) via Navigator.pop.
+/// Search the Mestergrønn product catalogue by name. Returns the chosen
+/// [Species] (enriched with full product data) via Navigator.pop.
+///
+/// Pass [initialQuery] (e.g. an OCR'd receipt line) to pre-fill the field and
+/// search immediately.
 class SpeciesSearchScreen extends ConsumerStatefulWidget {
-  const SpeciesSearchScreen({super.key});
+  const SpeciesSearchScreen({super.key, this.initialQuery});
+  final String? initialQuery;
   @override
   ConsumerState<SpeciesSearchScreen> createState() =>
       _SpeciesSearchScreenState();
@@ -20,21 +25,31 @@ class _SpeciesSearchScreenState extends ConsumerState<SpeciesSearchScreen> {
   bool _loading = false;
   String? _error;
 
-  Future<void> _search() async {
-    final api = ref.read(perenualProvider);
-    if (!api.hasKey) {
-      setState(() => _error =
-          'Mangler API-nøkkel. Legg den inn under Innstillinger → Perenual API.');
-      return;
+  @override
+  void initState() {
+    super.initState();
+    final q = widget.initialQuery?.trim() ?? '';
+    if (q.isNotEmpty) {
+      _c.text = q;
+      _search();
     }
+  }
+
+  Future<void> _search() async {
+    final catalog = ref.read(catalogProvider);
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final r = await api.speciesList(query: _c.text.trim());
-      setState(() => _results = r);
-    } on PerenualAuthException catch (e) {
+      final r = await catalog.search(_c.text.trim());
+      setState(() {
+        _results = r;
+        if (r.isEmpty) _error = 'Ingen treff.';
+      });
+    } on MestergronnException catch (e) {
+      setState(() => _error = e.message);
+    } on PlantasjenException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {
       setState(() => _error = 'Søk feilet: $e');
@@ -47,7 +62,7 @@ class _SpeciesSearchScreenState extends ConsumerState<SpeciesSearchScreen> {
     setState(() => _loading = true);
     Species enriched = s;
     try {
-      enriched = await ref.read(perenualProvider).enrichedSpecies(s.id);
+      enriched = await ref.read(catalogProvider).enrich(s);
     } catch (_) {/* fall back to list snapshot */}
     if (mounted) Navigator.of(context).pop(enriched);
   }
@@ -61,7 +76,7 @@ class _SpeciesSearchScreenState extends ConsumerState<SpeciesSearchScreen> {
           autofocus: true,
           textInputAction: TextInputAction.search,
           decoration: const InputDecoration(
-              hintText: 'Søk art (f.eks. monstera)',
+              hintText: 'Søk plante (f.eks. monstera)',
               border: InputBorder.none),
           onSubmitted: (_) => _search(),
         ),
@@ -85,14 +100,19 @@ class _SpeciesSearchScreenState extends ConsumerState<SpeciesSearchScreen> {
                 final s = _results[i];
                 return ListTile(
                   leading: CircleAvatar(
-                    backgroundImage:
-                        s.imageUrl != null ? NetworkImage(s.imageUrl!) : null,
+                    backgroundImage: s.imageUrl != null
+                        ? NetworkImage(
+                            MestergronnApi.displayImage(s.imageUrl)!)
+                        : null,
                     child: s.imageUrl == null
                         ? const Icon(Icons.local_florist)
                         : null,
                   ),
                   title: Text(s.commonName),
-                  subtitle: Text(s.scientificName.join(', ')),
+                  // Empty subtitle would push the title off-center vertically.
+                  subtitle: s.scientificName.isEmpty
+                      ? null
+                      : Text(s.scientificName.join(', ')),
                   trailing: s.wateringWord == null
                       ? null
                       : Chip(label: Text(s.wateringWord!)),

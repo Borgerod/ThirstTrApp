@@ -35,7 +35,7 @@ the app manu needs settngs such as what units they prefer (default: norwegian), 
 And now for thirdparty API's and such:
 {
 
-plant_api: I will use this API (https://perenual.com/docs/plant-open-api#/) for getting: ["/v2/species-list", "/v2/species/details/{id}", "/pest-disease-list", "/species-care-guide-list", "/hardiness-map" (idk what this is yet, set it up so i can have a look at it)],
+plant_api: Mestergrønn product catalogue (Salesforce Commerce Cloud, no API key). Search: SearchServices-GetSuggestions?q=<name> (HTML, gives pid+name+thumb). Details: Product-Variation?pid=<id>&quantity=1 (JSON: productName, shortDescription, images, careTips1-4 SVGs, productDimensions height). See services/mestergronn_api.dart.
 climate_api: uses the user location through this api: (whichever is more suitable one out of these: [https://open-meteo.com, https://openweathermap.org/api, https://www.weatherapi.com/ ]) to fill in climate related home-information.
 }
 Thats all that i can think of but maybe there are more API's that would be useful?

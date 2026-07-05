@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
-/// Scans a barcode/QR and pops the raw value. Perenual has no barcode lookup,
-/// so the caller uses the code as a name/note seed for the plant.
+/// Scans a barcode/QR and pops the raw value. The caller tries to resolve it
+/// against the Mestergrønn catalogue, falling back to a name/note seed.
 class BarcodeScanScreen extends StatefulWidget {
   const BarcodeScanScreen({super.key});
   @override

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../data/providers.dart';
 import '../../models/species.dart';
 import '../plant_detail/plant_edit_screen.dart';
 import 'barcode_scan_screen.dart';
+import 'receipt_scan_screen.dart';
 import 'species_search_screen.dart';
 
 /// Hub for the four ways to add a plant (per spec):
@@ -21,15 +23,15 @@ class AddPlantScreen extends ConsumerWidget {
         children: [
           _Option(
             icon: Icons.search,
-            title: 'Søk i artsdatabasen',
-            subtitle: 'Finn arten via Perenual og fyll inn stell automatisk',
+            title: 'Søk i plantekatalogen',
+            subtitle: 'Finn planten via Mestergrønn og fyll inn info automatisk',
             onTap: () => _fromSpecies(context),
           ),
           _Option(
             icon: Icons.qr_code_scanner,
             title: 'Skann strekkode',
             subtitle: 'Skann etiketten på potten',
-            onTap: () => _fromBarcode(context),
+            onTap: () => _fromBarcode(context, ref),
           ),
           _Option(
             icon: Icons.receipt_long,
@@ -65,21 +67,61 @@ class AddPlantScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _fromBarcode(BuildContext context) async {
+  Future<void> _fromBarcode(BuildContext context, WidgetRef ref) async {
     final code = await Navigator.of(context).push<String>(
         MaterialPageRoute(builder: (_) => const BarcodeScanScreen()));
-    if (code != null && context.mounted) {
-      await _openEdit(context, name: 'Strekkode $code');
+    if (code == null || !context.mounted) return;
+
+    // Pot labels carry three kinds of codes:
+    //  * QR with a Mestergrønn product URL (…/<pid>.html) → fetch it directly.
+    //  * numeric EAN → resolved via Plantasjen (Mestergrønn has no EAN index).
+    //  * text (plant name printed in the code) → search the catalogue by it.
+    final catalog = ref.read(catalogProvider);
+    final pidMatch = RegExp(r'/(\d+)\.html').firstMatch(code);
+    final isEan = RegExp(r'^\d{8,14}$').hasMatch(code.trim());
+    Species? species;
+    try {
+      if (pidMatch != null) {
+        species = await ref
+            .read(mestergronnProvider)
+            .enrichedSpecies(int.parse(pidMatch.group(1)!));
+      } else if (isEan) {
+        species = await catalog.byEan(code);
+      } else {
+        final hits = await catalog.search(code);
+        if (hits.isNotEmpty) species = await catalog.enrich(hits.first);
+      }
+    } catch (_) {/* offline or unknown code — fall through to manual search */}
+
+    if (!context.mounted) return;
+    if (species == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Fant ikke koden i katalogen — søk på navn.')));
+      // A text code is likely the plant's name: pre-fill the search with it.
+      species = await Navigator.of(context).push<Species>(MaterialPageRoute(
+          builder: (_) =>
+              SpeciesSearchScreen(initialQuery: isEan ? null : code)));
+      if (species == null || !context.mounted) return; // søk avbrutt
     }
+    await _openEdit(context, species: species, name: species.commonName);
   }
 
   Future<void> _fromReceipt(BuildContext context) async {
     final picker = ImagePicker();
+    // maxWidth/quality keep the upload under OCR.space's 1 MB free-tier cap.
     final shot = await picker.pickImage(
         source: ImageSource.camera, maxWidth: 1600, imageQuality: 80);
-    if (shot != null && context.mounted) {
-      await _openEdit(context, receiptPath: shot.path, name: 'Ny plante');
-    }
+    if (shot == null || !context.mounted) return;
+
+    // OCR the receipt and let the user match a line against the catalogue;
+    // backing out keeps the old behavior (attach photo, name manually).
+    final species = await Navigator.of(context).push<Species>(
+        MaterialPageRoute(builder: (_) => ReceiptScanScreen(image: shot)));
+    if (!context.mounted) return;
+    await _openEdit(context,
+        species: species,
+        receiptPath: shot.path,
+        name: species?.commonName ?? 'Ny plante');
   }
 
   Future<void> _fromName(BuildContext context) async {

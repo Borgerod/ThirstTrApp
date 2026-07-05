@@ -57,7 +57,9 @@ class Plant {
     this.tips,
     this.generalInfo,
     this.nearDraft = false,
+    this.draftWindowId,
     this.nearHeatSource = false,
+    this.onFloor = false,
     CareIntervals? intervals,
     this.lastWatered,
     this.lastFertilized,
@@ -102,7 +104,17 @@ class Plant {
   String? generalInfo;
 
   bool nearDraft;
+
+  /// Which window the draft comes from (null = other/unknown source).
+  String? draftWindowId;
+
+  /// Near a *radiant* heat source picked in [heatSourceIds]. Heating cables
+  /// are room-based and counted automatically — never picked here.
   bool nearHeatSource;
+
+  /// Standing on the floor (vs raised on a table/shelf). On a floor with
+  /// heating cables the pot is warmed from below.
+  bool onFloor;
 
   CareIntervals intervals;
 
@@ -179,7 +191,9 @@ class Plant {
         'tips': tips,
         'generalInfo': generalInfo,
         'nearDraft': nearDraft,
+        'draftWindowId': draftWindowId,
         'nearHeatSource': nearHeatSource,
+        'onFloor': onFloor,
         'intervals': intervals.toJson(),
         'lastWatered': lastWatered?.toIso8601String(),
         'lastFertilized': lastFertilized?.toIso8601String(),
@@ -227,7 +241,9 @@ class Plant {
         tips: asString(j['tips']),
         generalInfo: asString(j['generalInfo']),
         nearDraft: asBool(j['nearDraft']),
+        draftWindowId: asString(j['draftWindowId']),
         nearHeatSource: asBool(j['nearHeatSource']),
+        onFloor: asBool(j['onFloor']),
         intervals: j['intervals'] == null
             ? CareIntervals()
             : CareIntervals.fromJson(Map<String, dynamic>.from(j['intervals'])),

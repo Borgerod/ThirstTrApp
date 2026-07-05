@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Fixed web port so IndexedDB (Hive storage) survives restarts.
+      // Browser storage is keyed by origin *including port*; without a pinned
+      // port `flutter run -d chrome` picks a new one each launch and the app
+      // opens a fresh, empty database every time.
+      "name": "ThirstTrApp (Chrome, fixed port)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "chrome",
+      "args": ["--web-port=5353"]
+    },
+    {
+      "name": "ThirstTrApp (device/emulator)",
+      "request": "launch",
+      "type": "dart"
+    }
+  ]
+}
