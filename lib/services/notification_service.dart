@@ -125,7 +125,7 @@ class NotificationService {
 
     await _plugin.zonedSchedule(
       id: notifId,
-      title: '${task.type.emoji} ${task.type.label}: $plantName',
+      title: '${task.type.label}: $plantName',
       body: 'På tide å ${task.type.label.toLowerCase()}. Fullført, eller utsett?',
       scheduledDate: when,
       notificationDetails: _details(),
@@ -143,7 +143,7 @@ class NotificationService {
   /// Fire an immediate reminder (used for "remind me now" / testing).
   Future<void> showNow(CareTask task, String plantName) => _plugin.show(
         id: task.notificationId ?? task.id.hashCode & 0x7fffffff,
-        title: '${task.type.emoji} ${task.type.label}: $plantName',
+        title: '${task.type.label}: $plantName',
         body: 'På tide å ${task.type.label.toLowerCase()}.',
         notificationDetails: _details(),
         payload: task.id,

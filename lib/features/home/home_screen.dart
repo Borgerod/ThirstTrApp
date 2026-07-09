@@ -260,7 +260,7 @@ class PlantTile extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  '${next.type.emoji} ${next.type.label}',
+                  next.type.label,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 Text(

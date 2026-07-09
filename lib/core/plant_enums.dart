@@ -2,6 +2,8 @@
 /// Kept separate from the environment enums in `enums.dart`.
 library;
 
+import 'package:flutter/material.dart';
+
 enum RelativeSize {
   tiny('tiny', 'Bitteliten'),
   small('small', 'Liten'),
@@ -66,15 +68,15 @@ enum PlantCondition {
 
 /// Notable care characteristic shown as the 4th mini-care circle.
 enum CareTag {
-  easyCare('Lettstelt', '🌿'),
-  hardCare('Krevende', '🧪'),
-  needsShower('Trenger dusj', '🚿'),
-  lovesSoaking('Elsker bløtlegging', '🛁'),
-  humidityLover('Liker fukt', '💦'),
-  droughtTolerant('Tåler tørke', '🏜️'),
-  toxic('Giftig', '☠️');
+  easyCare('Lettstelt', Icons.eco),
+  hardCare('Krevende', Icons.science),
+  needsShower('Trenger dusj', Icons.shower),
+  lovesSoaking('Elsker bløtlegging', Icons.bathtub),
+  humidityLover('Liker fukt', Icons.water_drop),
+  droughtTolerant('Tåler tørke', Icons.wb_sunny),
+  toxic('Giftig', Icons.dangerous);
 
-  const CareTag(this.label, this.emoji);
+  const CareTag(this.label, this.icon);
   final String label;
-  final String emoji;
+  final IconData icon;
 }

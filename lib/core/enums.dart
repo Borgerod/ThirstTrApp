@@ -5,6 +5,8 @@
 /// value when an unknown id is encountered so old data never crashes the app.
 library;
 
+import 'package:flutter/material.dart';
+
 enum LightIntensity {
   shaded('shaded', 'Skyggefull'),
   indirect('indirect', 'Indirekte'),
@@ -109,15 +111,15 @@ enum WindowSize {
 }
 
 enum CareType {
-  water('water', 'Vanning', '💧'),
-  fertilize('fertilize', 'Gjødsling', '🌱'),
-  clean('clean', 'Rengjøring', '🧽'),
-  mist('mist', 'Spraying', '💦');
+  water('water', 'Vanning', Icons.water_drop),
+  fertilize('fertilize', 'Gjødsling', Icons.eco),
+  clean('clean', 'Rengjøring', Icons.cleaning_services),
+  mist('mist', 'Spraying', Icons.water);
 
-  const CareType(this.id, this.label, this.emoji);
+  const CareType(this.id, this.label, this.icon);
   final String id;
   final String label;
-  final String emoji;
+  final IconData icon;
 
   static CareType fromId(String? id) =>
       values.firstWhere((e) => e.id == id, orElse: () => water);
