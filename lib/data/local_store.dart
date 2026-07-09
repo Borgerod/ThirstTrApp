@@ -14,6 +14,7 @@ class LocalStore {
   static const windowsBox = 'windows';
   static const heatSourcesBox = 'heat_sources';
   static const openingsBox = 'room_openings';
+  static const floorsBox = 'floors';
   static const tasksBox = 'care_tasks';
   static const settingsBox = 'settings';
 
@@ -28,6 +29,7 @@ class LocalStore {
       Hive.openBox(windowsBox),
       Hive.openBox(heatSourcesBox),
       Hive.openBox(openingsBox),
+      Hive.openBox(floorsBox),
       Hive.openBox(tasksBox),
       Hive.openBox(settingsBox),
     ]);

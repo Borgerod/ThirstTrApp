@@ -1,5 +1,6 @@
 import '../models/app_settings.dart';
 import '../models/care_task.dart';
+import '../models/floor.dart';
 import '../models/heat_source.dart';
 import '../models/plant.dart';
 import '../models/room.dart';
@@ -59,6 +60,12 @@ class RoomOpeningRepository extends _Repo<RoomOpening> {
   RoomOpeningRepository()
       : super(LocalStore.openingsBox, RoomOpening.fromJson, (o) => o.toJson(),
             (o) => o.id);
+}
+
+class FloorRepository extends _Repo<Floor> {
+  FloorRepository()
+      : super(LocalStore.floorsBox, Floor.fromJson, (f) => f.toJson(),
+            (f) => f.id);
 }
 
 class TaskRepository extends _Repo<CareTask> {

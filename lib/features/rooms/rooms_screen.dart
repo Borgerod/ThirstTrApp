@@ -7,6 +7,7 @@ import '../../models/heat_source.dart';
 import '../../models/room.dart';
 import '../../models/room_opening.dart';
 import '../../models/window_object.dart';
+import 'floor_plan_builder.dart';
 
 /// Manage rooms, windows and heat sources that plants link to.
 class RoomsScreen extends ConsumerWidget {
@@ -446,69 +447,12 @@ class _OpeningTab extends ConsumerWidget {
 }
 
 // --------------------------------------------------------------------------- Floorplan
-/// Draw/edit the home floorplan. Placeholder until the canvas editor is built.
-/// This is the blueprint the home screen's "Romvisning" (room_view) renders.
-class _FloorTab extends ConsumerWidget {
+/// Draw/edit the home floorplan. This is the blueprint the home screen's
+/// "Romvisning" (room_view) renders.
+class _FloorTab extends StatelessWidget {
   const _FloorTab();
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tegneverktøy kommer snart')),
-        ),
-        icon: const Icon(Icons.edit_outlined),
-        label: const Text('Tegn'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Planløsning',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Tegn en enkel plantegning av hjemmet og plasser rom, vinduer og '
-              'varmekilder. Vises i «Romvisning» på hjemskjermen.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 16),
-            // Placeholder canvas — replace with the draw/edit surface later.
-            Expanded(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: Theme.of(context).dividerColor,
-                    width: 2,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  color: Theme.of(context)
-                      .colorScheme
-                      .surfaceContainerHighest
-                      .withValues(alpha: 0.4),
-                ),
-                child: const Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.architecture_outlined, size: 56),
-                      SizedBox(height: 12),
-                      Text('Ingen plantegning ennå'),
-                      SizedBox(height: 4),
-                      Text('Trykk «Tegn» for å starte (kommer snart)'),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const FloorPlanBuilder();
 }
 
 // --------------------------------------------------------------------------- shared form bits

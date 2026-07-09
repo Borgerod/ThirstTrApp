@@ -1,5 +1,6 @@
 import '../core/enums.dart';
 import '../core/json.dart';
+import 'floor_position.dart';
 
 /// A room grouping plants and objects. All properties optional with sensible
 /// fallbacks (room temperature falls back to 21 °C per spec).
@@ -11,12 +12,21 @@ class Room {
     this.temperatureC,
     this.lightMeasurementLux,
     this.lightIntensity,
+    this.floorId,
+    this.floorRect,
     Set<Facing>? exteriorWalls,
   }) : exteriorWalls = exteriorWalls ?? <Facing>{};
 
   final String id;
   String name;
   double? sizeSqm;
+
+  /// Floor this room sits on in the floor-plan builder (null = not placed yet).
+  String? floorId;
+
+  /// The room's rectangle on the floor canvas, normalized 0..1. Set by the
+  /// builder when the room is drawn or dropped. Null until placed.
+  FloorRect? floorRect;
 
   /// Manual thermostat reading; null -> fallback 21 °C.
   double? temperatureC;
@@ -68,6 +78,8 @@ class Room {
         'temperatureC': temperatureC,
         'lightMeasurementLux': lightMeasurementLux,
         'lightIntensity': lightIntensity?.id,
+        'floorId': floorId,
+        'floorRect': floorRect?.toJson(),
         'exteriorWalls': exteriorWalls.map((f) => f.id).toList(),
       };
 
@@ -80,6 +92,10 @@ class Room {
         lightIntensity: j['lightIntensity'] == null
             ? null
             : LightIntensity.fromId(asString(j['lightIntensity'])),
+        floorId: asString(j['floorId']),
+        floorRect: j['floorRect'] == null
+            ? null
+            : FloorRect.fromJson(Map<String, dynamic>.from(j['floorRect'])),
         exteriorWalls: _wallsFromJson(j),
       );
 

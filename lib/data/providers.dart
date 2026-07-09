@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../core/enums.dart';
 import '../models/app_settings.dart';
 import '../models/care_task.dart';
+import '../models/floor.dart';
 import '../models/heat_source.dart';
 import '../models/plant.dart';
 import '../models/room.dart';
@@ -29,6 +30,7 @@ final roomRepoProvider = Provider((_) => RoomRepository());
 final windowRepoProvider = Provider((_) => WindowRepository());
 final heatRepoProvider = Provider((_) => HeatSourceRepository());
 final openingRepoProvider = Provider((_) => RoomOpeningRepository());
+final floorRepoProvider = Provider((_) => FloorRepository());
 final taskRepoProvider = Provider((_) => TaskRepository());
 final settingsRepoProvider = Provider((_) => SettingsRepository());
 
@@ -132,6 +134,27 @@ final openingsProvider =
     NotifierProvider<OpeningsController, List<RoomOpening>>(
       OpeningsController.new,
     );
+
+class FloorsController extends Notifier<List<Floor>> {
+  @override
+  List<Floor> build() => ref.read(floorRepoProvider).all()
+    ..sort((a, b) => a.level.compareTo(b.level));
+
+  Future<void> save(Floor f) async {
+    await ref.read(floorRepoProvider).save(f);
+    state = ref.read(floorRepoProvider).all()
+      ..sort((a, b) => a.level.compareTo(b.level));
+  }
+
+  Future<void> delete(String id) async {
+    await ref.read(floorRepoProvider).remove(id);
+    state = ref.read(floorRepoProvider).all()
+      ..sort((a, b) => a.level.compareTo(b.level));
+  }
+}
+
+final floorsProvider =
+    NotifierProvider<FloorsController, List<Floor>>(FloorsController.new);
 
 // ---------------------------------------------------------------------------
 // Weather (cached future based on home location)
