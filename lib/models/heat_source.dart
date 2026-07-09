@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import '../core/enums.dart';
 import '../core/json.dart';
+import 'floor_position.dart';
 
 /// A heat source in a room (oven, fireplace, heat pump, ...).
 ///
@@ -20,12 +21,17 @@ class HeatSource {
     this.ratedPowerW,
     this.heatSetting,
     this.tempSetting,
+    this.floorPosition,
   });
 
   final String id;
   String name;
   String? roomId;
   HeatType type;
+
+  /// Room-local position on the floor-plan canvas. Not user-editable — the
+  /// floor-plan builder sets it when this source is placed. Null until placed.
+  FloorPosition? floorPosition;
 
   /// Rated (max) electrical/heat power from the device label [W]. Null → the
   /// typical value for the type is assumed.
@@ -114,6 +120,7 @@ class HeatSource {
         'ratedPowerW': ratedPowerW,
         'heatSetting': heatSetting?.id,
         'tempSetting': tempSetting,
+        'floorPosition': floorPosition?.toJson(),
       };
 
   factory HeatSource.fromJson(Map<String, dynamic> j) => HeatSource(
@@ -126,6 +133,10 @@ class HeatSource {
             ? null
             : HeatSetting.fromId(asString(j['heatSetting'])),
         tempSetting: asDouble(j['tempSetting']),
+        floorPosition: j['floorPosition'] == null
+            ? null
+            : FloorPosition.fromJson(
+                Map<String, dynamic>.from(j['floorPosition'])),
         // Legacy heatSpread/heatIntensity fields are ignored: both are now
         // computed from type + power + setting.
       );
