@@ -15,6 +15,7 @@ class CareContext {
     this.draftWindow,
     this.heatSources = const [],
     this.roomHeatSources = const [],
+    this.neighbours = const [],
     this.weather,
     this.latitude,
     DateTime? now,
@@ -36,6 +37,9 @@ class CareContext {
   /// temperature whether or not the plant is near one.
   final List<HeatSource> roomHeatSources;
 
+  /// Rooms connected to the plant's room via openings (gaps/doorways).
+  final List<RoomLink> neighbours;
+
   final WeatherSnapshot? weather;
 
   /// Home latitude (from settings) — lets the ET model compute real daylight
@@ -52,6 +56,7 @@ class CareContext {
         draftWindow: draftWindow,
         nearbyHeatSources: heatSources,
         roomHeatSources: roomHeatSources,
+        neighbours: neighbours,
         weather: weather,
         latitude: latitude,
         now: now,

@@ -7,9 +7,11 @@ import '../models/care_task.dart';
 import '../models/heat_source.dart';
 import '../models/plant.dart';
 import '../models/room.dart';
+import '../models/room_opening.dart';
 import '../models/window_object.dart';
 import '../services/mestergronn_api.dart';
 import '../services/notification_service.dart';
+import '../services/evapotranspiration.dart';
 import '../services/ocr_api.dart';
 import '../services/plant_catalog.dart';
 import '../services/plantasjen_api.dart';
@@ -26,6 +28,7 @@ final plantRepoProvider = Provider((_) => PlantRepository());
 final roomRepoProvider = Provider((_) => RoomRepository());
 final windowRepoProvider = Provider((_) => WindowRepository());
 final heatRepoProvider = Provider((_) => HeatSourceRepository());
+final openingRepoProvider = Provider((_) => RoomOpeningRepository());
 final taskRepoProvider = Provider((_) => TaskRepository());
 final settingsRepoProvider = Provider((_) => SettingsRepository());
 
@@ -105,6 +108,29 @@ class HeatSourcesController extends Notifier<List<HeatSource>> {
 final heatSourcesProvider =
     NotifierProvider<HeatSourcesController, List<HeatSource>>(
       HeatSourcesController.new,
+    );
+
+class OpeningsController extends Notifier<List<RoomOpening>> {
+  @override
+  List<RoomOpening> build() => ref.read(openingRepoProvider).all();
+
+  Future<void> save(RoomOpening o) async {
+    await ref.read(openingRepoProvider).save(o);
+    state = ref.read(openingRepoProvider).all();
+    // Openings change how rooms share climate → recompute every schedule.
+    await ref.read(tasksProvider.notifier).rebuildAll();
+  }
+
+  Future<void> delete(String id) async {
+    await ref.read(openingRepoProvider).remove(id);
+    state = ref.read(openingRepoProvider).all();
+    await ref.read(tasksProvider.notifier).rebuildAll();
+  }
+}
+
+final openingsProvider =
+    NotifierProvider<OpeningsController, List<RoomOpening>>(
+      OpeningsController.new,
     );
 
 // ---------------------------------------------------------------------------
@@ -197,6 +223,7 @@ CareContext buildContext(Ref ref, Plant p) {
   final rooms = ref.read(roomsProvider);
   final windows = ref.read(windowsProvider);
   final heats = ref.read(heatSourcesProvider);
+  final openings = ref.read(openingsProvider);
   final weather = ref.read(weatherProvider).value;
   final settings = ref.read(settingsProvider);
   return CareContext(
@@ -210,9 +237,38 @@ CareContext buildContext(Ref ref, Plant p) {
     roomHeatSources: p.roomId == null
         ? const []
         : heats.where((h) => h.roomId == p.roomId).toList(),
+    // Rooms reachable through openings share climate with this plant's room.
+    neighbours: p.roomId == null
+        ? const []
+        : _neighbourLinks(p.roomId!, rooms, heats, windows, openings),
     weather: weather,
     latitude: settings.latitude,
   );
+}
+
+/// Build the [RoomLink]s for a room from every opening that touches it.
+List<RoomLink> _neighbourLinks(
+  String roomId,
+  List<Room> rooms,
+  List<HeatSource> heats,
+  List<WindowObject> windows,
+  List<RoomOpening> openings,
+) {
+  final links = <RoomLink>[];
+  for (final o in openings) {
+    final otherId = o.otherRoom(roomId);
+    if (otherId == null) continue; // opening doesn't touch this room
+    final other = _firstOrNull(rooms, (r) => r.id == otherId);
+    if (other == null) continue;
+    links.add(RoomLink(
+      room: other,
+      weight: o.flowWeight,
+      heatSources: heats.where((h) => h.roomId == otherId).toList(),
+      windows: windows.where((w) => w.roomId == otherId).toList(),
+      openingName: o.name,
+    ));
+  }
+  return links;
 }
 
 final plantPlansProvider = Provider.family<List<CarePlan>, String>((ref, id) {
@@ -228,6 +284,7 @@ final careContextProvider = Provider.family<CareContext?, String>((ref, id) {
   ref.watch(roomsProvider);
   ref.watch(windowsProvider);
   ref.watch(heatSourcesProvider);
+  ref.watch(openingsProvider);
   ref.watch(weatherProvider);
   final p = ref.watch(plantsProvider.notifier).byId(id);
   return p == null ? null : buildContext(ref, p);

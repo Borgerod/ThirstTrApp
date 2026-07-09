@@ -3,6 +3,7 @@ import '../models/care_task.dart';
 import '../models/heat_source.dart';
 import '../models/plant.dart';
 import '../models/room.dart';
+import '../models/room_opening.dart';
 import '../models/window_object.dart';
 import 'local_store.dart';
 
@@ -52,6 +53,12 @@ class HeatSourceRepository extends _Repo<HeatSource> {
   HeatSourceRepository()
       : super(LocalStore.heatSourcesBox, HeatSource.fromJson, (h) => h.toJson(),
             (h) => h.id);
+}
+
+class RoomOpeningRepository extends _Repo<RoomOpening> {
+  RoomOpeningRepository()
+      : super(LocalStore.openingsBox, RoomOpening.fromJson, (o) => o.toJson(),
+            (o) => o.id);
 }
 
 class TaskRepository extends _Repo<CareTask> {

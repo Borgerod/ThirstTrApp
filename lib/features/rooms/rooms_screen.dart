@@ -5,6 +5,7 @@ import '../../core/enums.dart';
 import '../../data/providers.dart';
 import '../../models/heat_source.dart';
 import '../../models/room.dart';
+import '../../models/room_opening.dart';
 import '../../models/window_object.dart';
 
 /// Manage rooms, windows and heat sources that plants link to.
@@ -14,7 +15,7 @@ class RoomsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Rom & objekter'),
@@ -22,6 +23,7 @@ class RoomsScreen extends ConsumerWidget {
             Tab(text: 'Rom'),
             Tab(text: 'Vinduer'),
             Tab(text: 'Varmekilder'),
+            Tab(text: 'Åpninger'),
             Tab(text: 'Gulvplan'),
           ]),
         ),
@@ -29,6 +31,7 @@ class RoomsScreen extends ConsumerWidget {
           _RoomTab(),
           _WindowTab(),
           _HeatTab(),
+          _OpeningTab(),
           _FloorTab(),
         ]),
       ),
@@ -322,6 +325,126 @@ class _HeatTab extends ConsumerWidget {
   }
 }
 
+// --------------------------------------------------------------------------- Openings
+/// Gaps and doorways between two rooms. They let draft, heat and sunlight pass
+/// between the rooms, coupling their climate in the watering model.
+class _OpeningTab extends ConsumerWidget {
+  const _OpeningTab();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final openings = ref.watch(openingsProvider);
+    final rooms = {for (final r in ref.watch(roomsProvider)) r.id: r.name};
+    return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _editOpening(context, ref, null),
+        child: const Icon(Icons.add),
+      ),
+      body: openings.isEmpty
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32),
+                child: Text(
+                  'Ingen åpninger ennå. Legg til en åpning eller døråpning '
+                  'mellom to rom så deler de trekk, varme og lys.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
+          : ListView(
+              children: [
+                for (final o in openings)
+                  ListTile(
+                    leading: Icon(o.type.icon),
+                    title: Text(o.name),
+                    subtitle: Text(
+                        '${o.type.label} · ${o.height.label} · ${o.effectiveWidthCm.round()} cm\n'
+                        '${rooms[o.roomAId] ?? '—'} ↔ ${rooms[o.roomBId] ?? '—'}'),
+                    isThreeLine: true,
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () =>
+                          ref.read(openingsProvider.notifier).delete(o.id),
+                    ),
+                    onTap: () => _editOpening(context, ref, o),
+                  ),
+              ],
+            ),
+    );
+  }
+
+  void _editOpening(BuildContext context, WidgetRef ref, RoomOpening? opening) {
+    final rooms = ref.read(roomsProvider);
+    final o = opening ?? RoomOpening(id: uuid.v4(), name: '');
+    final name = TextEditingController(text: o.name);
+    final width = TextEditingController(text: o.widthCm?.toString() ?? '');
+    var type = o.type;
+    var roomA = o.roomAId;
+    var roomB = o.roomBId;
+    var height = o.height;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16),
+        child: StatefulBuilder(
+          builder: (ctx, setSheet) => SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _tf(name, 'Navn'),
+                _enumDropdown<OpeningType>('Type', type, OpeningType.values,
+                    (e) => e.label, (v) => setSheet(() => type = v!)),
+                _namedRoomDropdown(
+                    'Rom A', rooms, roomA, (v) => setSheet(() => roomA = v)),
+                _namedRoomDropdown(
+                    'Rom B', rooms, roomB, (v) => setSheet(() => roomB = v)),
+                _enumDropdown<OpeningHeight>('Høyde', height,
+                    OpeningHeight.values, (e) => e.label,
+                    (v) => setSheet(() => height = v!)),
+                _tf(
+                    width,
+                    'Bredde (cm) — valgfritt '
+                    '(antas ${o.effectiveWidthCm.round()} cm)',
+                    number: true),
+                if (roomA != null && roomB != null && roomA == roomB)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: Text('Velg to forskjellige rom.',
+                        style: TextStyle(color: Colors.red)),
+                  ),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: (roomA != null && roomB != null && roomA == roomB)
+                      ? null
+                      : () {
+                          o.name = name.text.trim().isEmpty
+                              ? type.label
+                              : name.text.trim();
+                          o.type = type;
+                          o.roomAId = roomA;
+                          o.roomBId = roomB;
+                          o.height = height;
+                          o.widthCm =
+                              double.tryParse(width.text.replaceAll(',', '.'));
+                          ref.read(openingsProvider.notifier).save(o);
+                          Navigator.pop(ctx);
+                        },
+                  child: const Text('Lagre'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // --------------------------------------------------------------------------- Floorplan
 /// Draw/edit the home floorplan. Placeholder until the canvas editor is built.
 /// This is the blueprint the home screen's "Romvisning" (room_view) renders.
@@ -470,8 +593,13 @@ Widget _lightDropdown(
 
 Widget _roomDropdown(
         List<Room> rooms, String? value, ValueChanged<String?> onChanged) =>
+    _namedRoomDropdown('Rom', rooms, value, onChanged);
+
+/// Room picker with a custom label (e.g. "Rom A" / "Rom B" for openings).
+Widget _namedRoomDropdown(String label, List<Room> rooms, String? value,
+        ValueChanged<String?> onChanged) =>
     _enumDropdown<String?>(
-        'Rom',
+        label,
         value,
         [null, ...rooms.map((r) => r.id)],
         (id) => id == null

@@ -132,6 +132,25 @@ class EtEstimate {
   ClimateSource get quality => climate.quality;
 }
 
+/// A neighbouring room reachable through a floor-plan opening (gap/doorway).
+/// The [weight] is the opening's normalized cross-flow area (0..0.9): how
+/// strongly the two rooms share temperature, air movement and daylight.
+class RoomLink {
+  const RoomLink({
+    required this.room,
+    required this.weight,
+    this.heatSources = const [],
+    this.windows = const [],
+    this.openingName = '',
+  });
+
+  final Room room;
+  final double weight;
+  final List<HeatSource> heatSources;
+  final List<WindowObject> windows;
+  final String openingName;
+}
+
 /// Everything the model needs about a plant's surroundings. Mirrors the
 /// scheduler's CareContext but kept dependency-free so the physics can be unit
 /// tested in isolation.
@@ -143,6 +162,7 @@ class EtInputs {
     this.draftWindow,
     this.nearbyHeatSources = const [],
     this.roomHeatSources = const [],
+    this.neighbours = const [],
     this.weather,
     this.latitude,
     required this.now,
@@ -163,6 +183,10 @@ class EtInputs {
   /// Every heat source in the room — sets the ambient room temperature
   /// (heating cables land here; they are room-scale, never "near").
   final List<HeatSource> roomHeatSources;
+
+  /// Rooms reachable from this plant's room through openings (gaps/doorways).
+  /// They share temperature, air movement and daylight weighted by opening area.
+  final List<RoomLink> neighbours;
 
   final WeatherSnapshot? weather;
   final double? latitude;
@@ -253,6 +277,12 @@ class WaterModel {
         ? Measured(roomTemp, ClimateSource.sensor, note: 'termometer')
         : _estimateRoomTemp(i);
 
+    // Cross-room blend: openings (gaps/doorways) let heat pass between rooms.
+    // Blend this room's ambient with each neighbour's standalone temperature,
+    // weighted by the opening's flow area. Applied at the ambient level, before
+    // local near-field bumps.
+    t = _blendNeighbourTemp(t, i);
+
     // Near-field: sum of each picked device's radiant irradiance at the
     // assumed distance, inverse-square decay (HeatSource.localRiseC).
     if (i.plant.nearHeatSource && i.nearbyHeatSources.isNotEmpty) {
@@ -283,23 +313,49 @@ class WaterModel {
     return t;
   }
 
+  /// Blend a room's ambient temperature with its neighbours across openings.
+  /// T = (T_room + Σ wᵢ·T_neighbourᵢ) / (1 + Σ wᵢ), where wᵢ is the opening's
+  /// flow weight. A neighbour with a thermometer uses that reading; otherwise
+  /// its standalone steady-state temperature.
+  static Measured _blendNeighbourTemp(Measured t, EtInputs i) {
+    if (i.neighbours.isEmpty) return t;
+    var num = t.value;
+    var den = 1.0;
+    for (final n in i.neighbours) {
+      final nt = n.room.temperatureC ??
+          _roomSteadyTemp(n.room, n.heatSources, i.weather).value;
+      num += n.weight * nt;
+      den += n.weight;
+    }
+    final blended = num / den;
+    if ((blended - t.value).abs() < 0.05) return t;
+    return t.copy(blended,
+        source: t.source.rank < ClimateSource.manual.rank
+            ? t.source
+            : ClimateSource.manual,
+        note: '${blended > t.value ? '+' : ''}'
+            '${(blended - t.value).toStringAsFixed(1)}°C via åpning til naborom');
+  }
+
   /// Steady-state room temperature from a heat balance:
   ///   T_room = T_out + ΣQ/UA, capped at the heaters' thermostat/dial target.
   /// UA (room heat-loss coefficient, W/K) is estimated from floor area and the
   /// number of exterior walls: ventilation ≈ 0.28·A, each exterior wall adds
   /// envelope loss ≈ 0.72·√A + 1.8 (wall U≈0.3 + a window share), plus a small
   /// infiltration constant.
-  static Measured _estimateRoomTemp(EtInputs i) {
-    final w = i.weather;
-    // Ambient temperature is set by every heater in the room, not just the
-    // ones the plant happens to stand near (heating cables included).
-    final heaters = i.roomHeatSources;
+  static Measured _estimateRoomTemp(EtInputs i) =>
+      _roomSteadyTemp(i.room, i.roomHeatSources, i.weather);
 
+  /// Steady-state temperature for an arbitrary room from its own heaters and
+  /// the outdoor weather. Reused both for the plant's room and, in the
+  /// cross-room blend, for each neighbouring room.
+  static Measured _roomSteadyTemp(
+      Room? room, List<HeatSource> heaters, WeatherSnapshot? w) {
     if (heaters.isNotEmpty) {
       final target = heaters.map((h) => h.targetC).reduce(math.max);
       if (w != null) {
-        final area = i.room?.sizeSqm ?? 15.0;
-        final nExt = i.room?.exteriorWalls.length ?? 1;
+        final area = room?.sizeSqm ?? 15.0;
+        final nExt = room?.exteriorWalls.length ?? 1;
         final ua = 0.28 * area + nExt * (0.72 * math.sqrt(area) + 1.8) + 2.0;
         final q = heaters.fold(0.0, (s, h) => s + h.outputW);
         final steady = w.temperatureC + q / ua;
@@ -388,6 +444,21 @@ class WaterModel {
         }
       }
     }
+    // Cross-draft through openings: a neighbouring room that is itself draughty
+    // (an often-open window or a fan-type heater) pushes air across the opening,
+    // scaled by its flow area.
+    for (final n in i.neighbours) {
+      final draughty =
+          n.windows.any((w) => w.openFrequency == OpenFrequency.often) ||
+              n.heatSources.any((h) =>
+                  h.type == HeatType.fanHeater || h.type == HeatType.heatPump);
+      if (!draughty) continue;
+      final add = 0.25 * n.weight;
+      if (v < 0.1 + add) {
+        v = 0.1 + add;
+        note = 'trekk fra naborom via åpning';
+      }
+    }
     return Measured(v.clamp(0.1, 1.5), source, note: note);
   }
 
@@ -412,6 +483,18 @@ class WaterModel {
       LightIntensity.indirect => 60.0,
       LightIntensity.shaded => 15.0,
     };
+
+    // Sunlight bleeds in from a brighter neighbouring room through an opening.
+    // Indirect second-hand light is weaker than a window, so only a partial
+    // share of the gap crosses.
+    for (final n in i.neighbours) {
+      final nWm2 = switch (n.room.resolvedIntensity) {
+        LightIntensity.direct => 250.0,
+        LightIntensity.indirect => 60.0,
+        LightIntensity.shaded => 15.0,
+      };
+      if (nWm2 > wm2) wm2 += (nWm2 - wm2) * n.weight * 0.5;
+    }
 
     // 3) Cloud/rain dimming from weather (precipitation is a wet-sky proxy).
     var source = ClimateSource.manual;
