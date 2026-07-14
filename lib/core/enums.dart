@@ -5,6 +5,8 @@
 /// value when an unknown id is encountered so old data never crashes the app.
 library;
 
+import 'package:flutter/material.dart';
+
 enum LightIntensity {
   shaded('shaded', 'Skyggefull'),
   indirect('indirect', 'Indirekte'),
@@ -109,15 +111,15 @@ enum WindowSize {
 }
 
 enum CareType {
-  water('water', 'Vanning', '💧'),
-  fertilize('fertilize', 'Gjødsling', '🌱'),
-  clean('clean', 'Rengjøring', '🧽'),
-  mist('mist', 'Spraying', '💦');
+  water('water', 'Vanning', Icons.water_drop),
+  fertilize('fertilize', 'Gjødsling', Icons.eco),
+  clean('clean', 'Rengjøring', Icons.cleaning_services),
+  mist('mist', 'Spraying', Icons.water);
 
-  const CareType(this.id, this.label, this.emoji);
+  const CareType(this.id, this.label, this.icon);
   final String id;
   final String label;
-  final String emoji;
+  final IconData icon;
 
   static CareType fromId(String? id) =>
       values.firstWhere((e) => e.id == id, orElse: () => water);
@@ -165,6 +167,39 @@ enum PortfolioView {
 
   /// Next mode in the cycle (wraps around).
   PortfolioView get next => values[(index + 1) % values.length];
+}
+
+/// An opening between two rooms in the floor plan. A gap is a plain wall
+/// opening; a doorway is a door-sized passage. Both let draft, heat and
+/// sunlight pass between the rooms they connect.
+enum OpeningType {
+  gap('gap', 'Åpning', Icons.space_bar),
+  doorway('doorway', 'Døråpning', Icons.sensor_door_outlined);
+
+  const OpeningType(this.id, this.label, this.icon);
+  final String id;
+  final String label;
+  final IconData icon;
+
+  static OpeningType fromId(String? id) =>
+      values.firstWhere((e) => e.id == id, orElse: () => doorway);
+}
+
+/// How tall an opening is: full height (floor to ceiling) or half (ceiling to
+/// half way down). The vertical share sets how much air/heat/light crosses it.
+enum OpeningHeight {
+  full('full', 'Full (gulv til tak)', 1.0),
+  half('half', 'Halv (tak til midtveis)', 0.5);
+
+  const OpeningHeight(this.id, this.label, this.fraction);
+  final String id;
+  final String label;
+
+  /// Fraction of the wall height the opening spans.
+  final double fraction;
+
+  static OpeningHeight fromId(String? id) =>
+      values.firstWhere((e) => e.id == id, orElse: () => full);
 }
 
 /// Cardinal facing of a window/room — affects light estimation.

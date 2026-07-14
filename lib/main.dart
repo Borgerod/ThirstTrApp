@@ -61,7 +61,7 @@ Future<void> main() async {
  TODO [x]: ET_plant = Kc × ET0; interval = pot readily-available water / ET_plant.
  TODO [x]: per-plant individual assessment (own room/window/heat/species via CareContext).
  TODO [x]: data-source policy sensor(light-meter, thermometer) > manual > weather-API > statistics.
- TODO [x]: statistics flagged as a failure — ⚠️ on care row + red warning in "why" sheet.
+ TODO [x]: statistics flagged as a failure — warning icon on care row + red warning in "why" sheet.
  TODO [x]: light-meter (lux) & thermometer (room °C) both OPTIONAL; model degrades gracefully.
  TODO [x]: indoor humidity by psychrometrics — outdoor absolute moisture re-evaluated at indoor T.
  TODO [x]: window orientation → sunlight (Facing) and window draft → wind (openFrequency + outdoor wind).

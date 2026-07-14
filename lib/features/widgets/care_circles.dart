@@ -19,15 +19,15 @@ class CareCircles extends StatelessWidget {
           caption: species.lightExposure.label,
         ),
         _Circle(
-          emoji: '💧',
+          icon: Icons.water_drop,
           caption: 'Vann: ${species.wateringLevel.label}',
         ),
         _Circle(
-          emoji: '🌱',
+          icon: Icons.eco,
           caption: 'Gjødsel: ${species.fertilizingLevel.label}',
         ),
         _Circle(
-          emoji: species.careTag.emoji,
+          icon: species.careTag.icon,
           caption: species.careTag.label,
         ),
       ],
@@ -42,9 +42,8 @@ class CareCircles extends StatelessWidget {
 }
 
 class _Circle extends StatelessWidget {
-  const _Circle({this.icon, this.emoji, required this.caption});
-  final IconData? icon;
-  final String? emoji;
+  const _Circle({required this.icon, required this.caption});
+  final IconData icon;
   final String caption;
 
   @override
@@ -57,9 +56,7 @@ class _Circle extends StatelessWidget {
           CircleAvatar(
             radius: 26,
             backgroundColor: scheme.secondaryContainer,
-            child: icon != null
-                ? Icon(icon, color: scheme.onSecondaryContainer)
-                : Text(emoji ?? '', style: const TextStyle(fontSize: 22)),
+            child: Icon(icon, color: scheme.onSecondaryContainer),
           ),
           const SizedBox(height: 4),
           Text(

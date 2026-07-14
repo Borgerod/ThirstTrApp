@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../core/enums.dart';
 import '../../data/providers.dart';
 import '../../services/weather_api.dart';
 
-/// Preferences: units, home location (drives weather), Perenual API key,
-/// notification options.
+/// Preferences: units, home location (drives weather), notification options.
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -64,18 +64,6 @@ class SettingsScreen extends ConsumerWidget {
                 ctrl.update(s.copyWith(useWeatherAdjustment: v)),
           ),
 
-          const _Header('Perenual API'),
-          ListTile(
-            leading: Icon(s.hasApiKey ? Icons.key : Icons.key_off,
-                color: s.hasApiKey ? Colors.green : null),
-            title: const Text('API-nøkkel'),
-            subtitle: Text(s.hasApiKey
-                ? 'Satt (•••${s.perenualApiKey.length > 3 ? s.perenualApiKey.substring(s.perenualApiKey.length - 3) : ''})'
-                : 'Mangler — søk i artsdatabasen krever nøkkel'),
-            trailing: const Icon(Icons.edit),
-            onTap: () => _editApiKey(context, ref),
-          ),
-
           const _Header('Varsler'),
           SwitchListTile(
             title: const Text('Påminnelser'),
@@ -101,42 +89,11 @@ class SettingsScreen extends ConsumerWidget {
             },
           ),
           const SizedBox(height: 24),
-          const Center(
-              child: Text('ThirstTrApp · V1',
-                  style: TextStyle(color: Colors.grey))),
+          const Center(child: _VersionFooter()),
           const SizedBox(height: 24),
         ],
       ),
     );
-  }
-
-  Future<void> _editApiKey(BuildContext context, WidgetRef ref) async {
-    final s = ref.read(settingsProvider);
-    final c = TextEditingController(text: s.perenualApiKey);
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Perenual API-nøkkel'),
-        content: TextField(
-          controller: c,
-          decoration: const InputDecoration(
-              hintText: 'Lim inn nøkkel fra perenual.com'),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Avbryt')),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, c.text.trim()),
-              child: const Text('Lagre')),
-        ],
-      ),
-    );
-    if (result != null) {
-      await ref
-          .read(settingsProvider.notifier)
-          .update(s.copyWith(perenualApiKey: result));
-    }
   }
 
   Future<void> _pickLocation(BuildContext context, WidgetRef ref) async {
@@ -226,6 +183,25 @@ class SettingsScreen extends ConsumerWidget {
 
   void _toast(BuildContext context, String msg) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+}
+
+/// Footer showing full app version (name+patch) and build number from pubspec.
+class _VersionFooter extends StatelessWidget {
+  const _VersionFooter();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<PackageInfo>(
+      future: PackageInfo.fromPlatform(),
+      builder: (context, snap) {
+        final info = snap.data;
+        final label = info == null
+            ? 'ThirstTrApp'
+            : 'ThirstTrApp · v${info.version} (${info.buildNumber})';
+        return Text(label, style: const TextStyle(color: Colors.grey));
+      },
+    );
+  }
 }
 
 class _Header extends StatelessWidget {

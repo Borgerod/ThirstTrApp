@@ -35,7 +35,7 @@ class TasksScreen extends ConsumerWidget {
         ],
       ),
       body: tasks.isEmpty
-          ? const Center(child: Text('Ingenting å gjøre 🎉'))
+          ? const Center(child: Text('Ingenting å gjøre'))
           : ListView(
               padding: const EdgeInsets.only(bottom: 24),
               children: [
@@ -84,7 +84,7 @@ class _TaskTile extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
         child: Row(
           children: [
-            Text(task.type.emoji, style: const TextStyle(fontSize: 24)),
+            Icon(task.type.icon, size: 24),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

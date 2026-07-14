@@ -1,6 +1,7 @@
 import '../core/enums.dart';
 import '../core/json.dart';
 import '../core/plant_enums.dart';
+import 'floor_position.dart';
 import 'species.dart';
 
 /// User-facing care interval overrides. Null = derive from species/scheduler.
@@ -60,6 +61,7 @@ class Plant {
     this.draftWindowId,
     this.nearHeatSource = false,
     this.onFloor = false,
+    this.floorPosition,
     CareIntervals? intervals,
     this.lastWatered,
     this.lastFertilized,
@@ -113,8 +115,13 @@ class Plant {
   bool nearHeatSource;
 
   /// Standing on the floor (vs raised on a table/shelf). On a floor with
-  /// heating cables the pot is warmed from below.
+  /// heating cables the pot is warmed from below. Captured by the floor-plan
+  /// builder when the plant is placed (user is asked "raised or on floor").
   bool onFloor;
+
+  /// Room-local position on the floor-plan canvas. Not user-editable — the
+  /// floor-plan builder sets it when this plant is placed. Null until placed.
+  FloorPosition? floorPosition;
 
   CareIntervals intervals;
 
@@ -194,6 +201,7 @@ class Plant {
         'draftWindowId': draftWindowId,
         'nearHeatSource': nearHeatSource,
         'onFloor': onFloor,
+        'floorPosition': floorPosition?.toJson(),
         'intervals': intervals.toJson(),
         'lastWatered': lastWatered?.toIso8601String(),
         'lastFertilized': lastFertilized?.toIso8601String(),
@@ -244,6 +252,10 @@ class Plant {
         draftWindowId: asString(j['draftWindowId']),
         nearHeatSource: asBool(j['nearHeatSource']),
         onFloor: asBool(j['onFloor']),
+        floorPosition: j['floorPosition'] == null
+            ? null
+            : FloorPosition.fromJson(
+                Map<String, dynamic>.from(j['floorPosition'])),
         intervals: j['intervals'] == null
             ? CareIntervals()
             : CareIntervals.fromJson(Map<String, dynamic>.from(j['intervals'])),

@@ -1,5 +1,6 @@
 import '../core/enums.dart';
 import '../core/json.dart';
+import 'floor_position.dart';
 
 /// A window a plant can be linked to. Drives light estimation.
 class WindowObject {
@@ -12,6 +13,7 @@ class WindowObject {
     this.facing = Facing.unknown,
     this.lightMeasurementLux,
     this.lightIntensity,
+    this.floorPosition,
   });
 
   final String id;
@@ -20,6 +22,10 @@ class WindowObject {
   OpenFrequency openFrequency;
   WindowSize size;
   Facing facing;
+
+  /// Room-local position on the floor-plan canvas. Not user-editable — set by
+  /// the floor-plan builder when the window is placed. Null until placed.
+  FloorPosition? floorPosition;
 
   /// Measured lux if the user owns a light meter.
   double? lightMeasurementLux;
@@ -59,6 +65,7 @@ class WindowObject {
         'facing': facing.id,
         'lightMeasurementLux': lightMeasurementLux,
         'lightIntensity': lightIntensity?.id,
+        'floorPosition': floorPosition?.toJson(),
       };
 
   factory WindowObject.fromJson(Map<String, dynamic> j) => WindowObject(
@@ -72,5 +79,9 @@ class WindowObject {
         lightIntensity: j['lightIntensity'] == null
             ? null
             : LightIntensity.fromId(asString(j['lightIntensity'])),
+        floorPosition: j['floorPosition'] == null
+            ? null
+            : FloorPosition.fromJson(
+                Map<String, dynamic>.from(j['floorPosition'])),
       );
 }

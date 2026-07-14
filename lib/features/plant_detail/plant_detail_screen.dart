@@ -139,8 +139,7 @@ class PlantDetailScreen extends ConsumerWidget {
             for (final plan in plans)
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: Text(plan.type.emoji,
-                    style: const TextStyle(fontSize: 24)),
+                leading: Icon(plan.type.icon, size: 24),
                 title: Row(
                   children: [
                     Text(plan.type.label),
@@ -357,7 +356,7 @@ class PlantDetailScreen extends ConsumerWidget {
       );
 
   static String _hazard(bool? v) =>
-      v == null ? 'Ukjent' : (v ? '⚠️ Ja' : 'Nei');
+      v == null ? 'Ukjent' : (v ? 'Ja' : 'Nei');
 
   Future<void> _confirmDelete(
       BuildContext context, WidgetRef ref, Plant plant) async {
