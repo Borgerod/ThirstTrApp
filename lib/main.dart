@@ -19,112 +19,111 @@ Future<void> main() async {
   await NotificationService.instance.requestPermissions();
   runApp(const ProviderScope(child: ThirstTrApp()));
 }
-/* 
- STATUS KEY: [x] done · [*] half-done (see NOTE) · [ ] not started
+/*
+                  insert tab
+                     v
+TODO [status]: number [location][sub-location-if-needed][subject] overall action -> description _explaination or comment if only needed_
 
- ! BUGS / MISSING
- TODO [*]: add new plant -> search -> card tunmbnails in search results are emtpy. NOTE: this also applies to my-plants list
-      NOTE(status): Perenual FREE tier returns an "upgrade_access.jpg" placeholder for every image -> filtered, shows leaf fallback. Real photos need paid tier / Wikimedia (V2).
- TODO [*]: add new plant -> form -> it wont provide with default values for plants (height, size, maturity)
-      NOTE(status): size=Middels, maturity=Voksen, date=today defaulted on new plant. Height left blank (no source).
- TODO [x]: add new plant -> form -> relatize-size-select is freetext and not a list, it should be values selected form a list [tiny, small, medium, large, huge]
- TODO [x]: add new plant -> form -> maturity-select is freetext and not a list, it should be values selected form a list [seedling, young, juvenile, mature, old] #this should also be automatically updated by year calculations (date-aquired value)
- TODO [x]: add new plant -> form -> date-aquired should have todays date as default values
- TODO [x]: add new plant -> form -> maturity-select -> this should also be automatically updated by year calculations (date-aquired value) - extending the current maturity value, not resetting it
- TODO [x]: add new plant -> form -> condition-select should not be a free-text but a select
- TODO [x]: add new plant -> form -> hazard for kids and pets should be filled by the API and not manual in form.
- TODO [x]: add new plant -> form -> care-intervals notify the user it is recommended not to override; switch activates the fields (deactivated by default)
- TODO [x]: general -> nordic characters are not activated, which they need to.
- TODO [x]: general -> app version is set to 1.0.0 which is wrong, it is not finished yet and should be 0.1.0.
- TODO [x]: palnt info -> not all plants need cleaning; wont force a cleaning routine for plants that do not specifically need it.
+TODO [ ]: 12. [objects][heat-source][form] add feat(field) -> add a select for heat source type [oil-heater, eletric-heater, fan-heater, wall-heater, heating-kabels, heat-pump, air-conditioner, fireplace,] _air-condition is a special case since its a drag-source and heat-source_
+  
+  
+* If multiple things are to be done on a subject/place
+TODO [ ]: 12. [objects] update forms 
+        [X]: 1. [heat-source][form] add feat(field) -> add a select for heat source type [oil-heater, eletric-heater, fan-heater, wall-heater, heating-kabels, heat-pump, air-conditioner, fireplace,]
+        [ ]: 2. [room][form] update field(light-intensity) -> add option to lightintensity - "Estimate" _this will trigger estimation model for light exposure_
 
- * UPDATES
- TODO [x]: location -> missing pick current location.
- TODO [ ]: notification/location -> notify only when they are home (standby until current location within home location). DEFERRED: needs background location + geofencing.
- TODO [*]: notification/location -> GDPR, ask the user to allways allow geolocation; INFORM clearly why.
-      NOTE(status): rationale dialog informs WHY. "Tillat alltid"/background permission not yet wired (tied to home-detection above).
- TODO [ ]: notification/location -> the user should be able to postpone this notification. DEFERRED with geofencing.
- TODO [x]: add new plant -> form -> NOTE recommending the user water the plant upon registration + checkmark (keeps scheduler in sync).
- TODO [x]: palnt info -> the API provides a ton of useful info and care-tips; included ("Om arten" card).
- TODO [*]: palnt info -> section about relevant diseases and pests common in users region.
-      NOTE(status): pests/diseases shown from Perenual; REGION filtering not available from the API.
- TODO [x]: palnt info -> care-tips -> mini-version: four round circles [light-exposure, water-frequenzy-level, fertilization-frequenzy-level, notable-care-tag].
- TODO [x]: palnt info -> plant info has the same four round circles.
+* multiline is turned on, so you are permitted to wrap the line (remember to tab)
+TODO [ ]: 12.  [objects][heat-source][form] add feat(field) -> add a select for heat source type 
+               [oil-heater, eletric-heater, fan-heater, wall-heater, heating-kabels, heat-pump, air-conditioner, fireplace,] _air-condition is a special case since its a drag-source and heat-source_
 
- ~ WATERING ESTIMATION — Penman-Monteith / evapotranspiration recipe
-   (engine: services/evapotranspiration.dart · wired: services/scheduler.dart watering())
- TODO [x]: model soil-moisture loss as evapotranspiration (ET) as the primary driver.
- TODO [x]: FAO-56 Penman-Monteith reference ET (ET0) — verified vs reference (es=2.338, Δ=0.145 @20°C).
- TODO [x]: four ET drivers resolved — net radiation (Rn), air temp (T), wind (u2), VPD (es−ea).
- TODO [x]: VPD from es(T) & ea = es·RH/100; soil heat flux G ≈ 0 for daily indoor.
- TODO [x]: crop coefficient Kc per plant = species thirst × relative-size × maturity.
- TODO [x]: ET_plant = Kc × ET0; interval = pot readily-available water / ET_plant.
- TODO [x]: per-plant individual assessment (own room/window/heat/species via CareContext).
- TODO [x]: data-source policy sensor(light-meter, thermometer) > manual > weather-API > statistics.
- TODO [x]: statistics flagged as a failure — warning icon on care row + red warning in "why" sheet.
- TODO [x]: light-meter (lux) & thermometer (room °C) both OPTIONAL; model degrades gracefully.
- TODO [x]: indoor humidity by psychrometrics — outdoor absolute moisture re-evaluated at indoor T.
- TODO [x]: window orientation → sunlight (Facing) and window draft → wind (openFrequency + outdoor wind).
- TODO [x]: daylight hours from latitude + day-of-year (astronomical), not assumed.
- TODO [x]: room temperature estimate (weather-derived indoor / thermostat setpoint / fallback).
- TODO [x]: user thermostat reading + heating-cable strength feed local temp (room °C, heat-source setting/target).
- TODO [x]: "why" breakdown sheet shows every driver with its data source.
- TODO [x]: localized heat source → local temp rise. Physics-based: rated W (label or type default) ×
-      setting duty → radiant/convective split per type → local ΔT = α·P_rad/(4πd²)/h with d=1 m assumed;
-      room temp from heat balance T_out + ΣQ/UA capped at thermostat/dial target (UA from area + ext walls).
-      User no longer guesses "spredning/intensitet" — those fields are removed from the form.
- TODO [*]: soil-surface evaporation. NOTE: folded into Kc; not split from transpiration as its own term.
- TODO [*]: light → Rn. NOTE: lux via luminous efficacy + light-band estimate; no PAR conversion / grow-light input.
- TODO [ ]: cold sources (AC, fridge) + window cold-gradient effect on local temp — no cold-source model yet.
- TODO [ ]: distance-to-source inputs (heat/cold/window) for proximity fall-off (∝1/d²) — only a near/not-near flag today.
- TODO [ ]: pot material (terracotta vs plastic) → evaporation from pot sides.
- TODO [ ]: soil type (peat/coco/mix) → water-retention (available-water fraction fixed at 0.30 now).
- TODO [ ]: artificial grow lights as a radiation source.
- TODO [ ]: obstructions (furniture/walls) blocking light or airflow.
- TODO [ ]: single/double-pane window in the thermal calc.
+
+TODO [ ]: 2. [objects][rooms] add this -> _blablabla_
+TODO [ ]: 3. [objects][windows] delete that -> _blablabla_
+TODO [ ]: 4. [plant_list][layout] refactor this -> _blablabla_
+TODO [ ]: 5. [plant_list][add_new]
+        [ ]: 1. [plant_list][bar-code] fix this -> _blablabla_
+        [ ]: 1. [plant_list][search] add that -> _blablabla_
+
+
+* bugs or missing stuff needs to have marked with a tag: 
+TODO [ ]: 2. (BUG)[objects][rooms] fix this -> _blablabla_ 
+
 */
 
-/* > TO DO's
-! BUGS / MISSING
-TODO [x]: add new plant -> search -> card tunmbnails in search results are emtpy. NOTE: this also applies to my-plants list  # fixed: Perenual dropped; Mestergrønn/Plantasjen images render via web CORS proxy (displayImage)
-TODO [*]: add new plant -> form -> it wont provide with default values for plants (height, size, maturity)  # size/maturity/date/condition defaulted; height now from catalogue standardHeightCm when available
-TODO [x]: add new plant -> form -> relatize-size-select is freetext and not a list, it should be values selected form a list [tiny, small, medium, large, huge]
-TODO [x]: add new plant -> form -> maturity-select is freetext and not a list, it should be values selected form a list [seedling, young, juvenile, mature, old] #this should also be automatically updated by year calculations (date-aquired value)
-TODO [x]: add new plant -> form -> date-aquired should have todays date as default values
-TODO [x]: add new plant -> form -> maturity-select -> this should also be automatically updated by year calculations (date-aquired value) - it is important that the update is 'extending' the current maturity value and does not reset it (if i aquire a juvenile plant,  and then have it for 2 years, then the maturity should be maturity=juvenile+2years, and not maturity=2years)  # MaturityStage.advancedBy()
-TODO [x]: add new plant -> form -> condition-select should not be a free-text but a select  # + defaults to Frisk on new plants
-TODO [x]: add new plant -> form -> hazard for kids and pets should not be automaticalluy filled by the API and not manual in form.  # from species poisonousToPets/Humans (Plantasjen 'Giftig')
-TODO [x]: add new plant -> form -> care-intervals should notify the user that; it is recommended that the user does not override because the app will calculate this based on multiple factors. then give add a checkbox or switch that activates the form fields (deactivated by default)
-TODO [x]: general -> nordic characters are not activated, which they need to.
-TODO [x]: general -> app version is set to 1.0.0 which is wrong, it is not finished yet and should be 0.1.0.
-TODO [x]: plant info -> not all plants need cleaning, make sure it wont force a cleaning routine for plants that do not specifically need it.  # cleaning opt-in (only when intervals.cleanDays set)
-TODO [x]: palnt info -> need to estimate the room temperature  # weather-derived indoor estimate + thermostat setpoint + 21°C fallback (evapotranspiration.dart _resolveTemp)
-TODO [x]: palnt info -> user input thermostat reading (or heating cable strength)  # room °C (thermometer) + heat-source tempSetting/heatSetting feed local temp
+/* > VERSION 1.0
+TODO [x]: 1. (BUG)[general] fix nordic characters -> they were not activated
+TODO [x]: 2. (BUG)[general] fix app version -> was set to 1.0.0, not finished yet, set to 0.1.0
+TODO [ ]: 3. [add_new][form] update fields
+        [x]: 1. [form][relative-size] update field(select) -> freetext replaced with select from list [tiny, small, medium, large, huge]
+        [x]: 2. [form][maturity] update field(select) -> freetext replaced with select from list [seedling, young, juvenile, mature, old]
+        [x]: 3. [form][maturity] add feat(auto-update) -> maturity advances by year calculations (date-aquired), extending current value
+                not resetting it _MaturityStage.advancedBy()_
+        [x]: 4. [form][date-aquired] update field(default) -> defaults to todays date
+        [x]: 5. [form][condition] update field(select) -> freetext replaced with select _defaults to Frisk on new plants_
+        [x]: 6. [form][hazard] update field(auto-fill) -> kids/pets hazard filled from species data, not manual _poisonousToPets/Humans, Plantasjen 'Giftig'_
+        [x]: 7. [form][care-intervals] add feat(override-switch) -> notify user it is recommended not to override; switch activates the fields (deactivated by default)
+        [x]: 8. [form][note] add feat(checkmark) -> recommend watering the plant upon registration so the scheduler stays in sync _even though the soil is moist_
+        [*]: 9. [form][defaults] add feat(default-values) -> provide defaults for height, size, maturity
+                NOTE (status): size/maturity/date/condition defaulted; height from catalogue standardHeightCm when available.
+TODO [x]: 4. (BUG)[add_new][search] fix thumbnails -> card thumbnails were empty; Perenual dropped, Mestergrønn/Plantasjen
+              images render via web CORS proxy (displayImage) _also applied to my-plants list_
+TODO [ ]: 5. [plant_info] update profile
+        [x]: 1. (BUG)[profile][cleaning] fix routine -> no forced cleaning for plants that do not specifically need it _only when intervals.cleanDays is set_
+        [x]: 2. [profile][om-arten] add feat(card) -> species info + care-tips from API included
+        [x]: 3. [profile][care-tips] add feat(mini-version) -> four round circles at top [light-exposure, water-frequenzy-level,
+                fertilization-frequenzy-level, notable-care-tag: [needs-shower | easy-care | hard-care | loves-soaking]]
+        [x]: 4. [profile][info] add feat(mini-version) -> same four round circles on plant info
+        [*]: 5. [profile][pests] add feat(section) -> relevant diseases + pests common in users region
+                NOTE (status): Perenual dropped; Mestergrønn/Plantasjen have no pest/disease data -> section currently empty. Needs a new data source.
+TODO [x]: 6. [location] add feat(pick-current-location) -> it was missing
+TODO [ ]: 7. [notification][location] update notification flow
+        [ ]: 1. [notification][home] add feat(standby) -> notify only when user is home; hold notification until current location
+                is within home location _DEFERRED: needs background location + geofencing_
+        [*]: 2. [notification][gdpr] add feat(permission) -> ask user to allways allow geolocation; INFORM clearly why
+                NOTE (status): rationale dialog informs WHY. "Tillat alltid"/background permission not wired (tied to 1.)
+        [ ]: 3. [notification][postpone] add feat(postpone) -> let user postpone when notification gets through but they are
+                leaving soon _DEFERRED with 1.; postpone action already exists on the notification itself_
+TODO [ ]: 8. [engine] watering estimation -> Penman-Monteith / evapotranspiration recipe
+              _engine: services/evapotranspiration.dart · wired: services/scheduler.dart watering()_
+        [x]: 1. [engine][model] add feat(ET) -> soil-moisture loss modeled as evapotranspiration, the primary driver
+        [x]: 2. [engine][model] add feat(ET0) -> FAO-56 Penman-Monteith reference ET, verified vs reference (es=2.338, Δ=0.145 @20°C)
+        [x]: 3. [engine][model] add feat(drivers) -> four ET drivers resolved: net radiation (Rn), air temp (T), wind (u2), VPD (es−ea)
+        [x]: 4. [engine][model] add feat(VPD) -> VPD from es(T) & ea = es·RH/100; soil heat flux G ≈ 0 for daily indoor
+        [x]: 5. [engine][model] add feat(Kc) -> crop coefficient per plant = species thirst × relative-size × maturity
+        [x]: 6. [engine][model] add feat(interval) -> ET_plant = Kc × ET0; interval = pot readily-available water / ET_plant
+        [x]: 7. [engine][model] add feat(per-plant) -> individual assessment, own room/window/heat/species via CareContext
+        [x]: 8. [engine][data] add feat(policy) -> data-source priority: sensor(light-meter, thermometer) > manual > weather-API > statistics
+        [x]: 9. [engine][data] add feat(warning) -> statistics flagged as failure: warning icon on care row + red warning in "why" sheet
+        [x]: 10. [engine][data] add feat(sensors) -> light-meter (lux) & thermometer (room °C) both OPTIONAL, model degrades gracefully
+        [x]: 11. [engine][climate] add feat(humidity) -> indoor humidity by psychrometrics, outdoor absolute moisture re-evaluated at indoor T
+        [x]: 12. [engine][climate] add feat(window) -> orientation gives sunlight (Facing); draft gives wind (openFrequency + outdoor wind)
+        [x]: 13. [engine][climate] add feat(daylight) -> hours from latitude + day-of-year (astronomical), not assumed
+        [x]: 14. [engine][climate] add feat(room-temp) -> estimate from weather-derived indoor / thermostat setpoint / 21°C fallback (_resolveTemp)
+        [x]: 15. [engine][climate] add feat(thermostat) -> user reading + heating-cable strength feed local temp (room °C, heat-source tempSetting/heatSetting)
+        [x]: 16. [engine][ui] add feat(why-sheet) -> breakdown sheet shows every driver with its data source
+        [x]: 17. [engine][climate] add feat(heat-source) -> localized heat source gives local temp rise, physics-based: rated W
+                 (label or type default) × setting duty -> radiant/convective split per type -> local ΔT = α·P_rad/(4πd²)/h with
+                 d=1 m assumed; room temp from heat balance T_out + ΣQ/UA capped at thermostat/dial target (UA from area + ext walls)
+                 _"spredning/intensitet" form fields removed — user no longer guesses_
+        [*]: 18. [engine][model] add feat(soil-evaporation) -> evaporation from the soil surface as its own term
+                 NOTE (status): folded into Kc; not split from transpiration.
+        [*]: 19. [engine][model] add feat(light-Rn) -> light converted to net radiation (Rn)
+                 NOTE (status): lux via luminous efficacy + light-band estimate; no PAR conversion / grow-light input.
+        [ ]: 20. [engine][climate] add feat(cold-sources) -> AC/fridge + window cold-gradient effect on local temp _no cold-source model yet_
+        [ ]: 21. [engine][form] add feat(distance-fields) -> distance-to-source (heat/cold/window) for proximity fall-off (∝1/d²) _only a near/not-near flag today_
+        [ ]: 22. [engine][model] add feat(pot-material) -> terracotta vs plastic, evaporation from pot sides
+        [ ]: 23. [engine][model] add feat(soil-type) -> peat/coco/mix water-retention _available-water fraction fixed at 0.30 now_
+        [ ]: 24. [engine][model] add feat(grow-lights) -> artificial grow lights as a radiation source
+        [ ]: 25. [engine][model] add feat(obstructions) -> furniture/walls blocking light or airflow
+        [ ]: 26. [engine][model] add feat(window-panes) -> single/double-pane window in the thermal calc
+*/
+     
+/* > VERSION 2.0
+TODO [ ]: 9. [general][v2.0] add feat(multiple-homes) -> support more homes, cabins etc. _ignore untill all above are completed_
+TODO [ ]: 10. [general][v2.0] add feat(print/share) -> printable overview so plant-sitters can have a care-plan _ignore untill all above are completed_
+              ? can this be solved some other way -> contributors for households with more people or temporarily adding a plant-sitter?      
+*/
 
-
-
-* UPDATES
-TODO [x]: location -> missing pick current location.
-TODO [ ]: notification/location -> make sure that the user is notified only when they are home. (if they are set to be notified at 11 but they wont be home from work before later in the day, have the notification on standby until theyre current location is within home location)  # DEFERRED: needs background location + geofencing
-TODO [*]: notification/location -> due to GDPR, we need ask the user to allways allow geolocation. it is important that we INFORM the user clearly why this is important.  # rationale dialog informs WHY; "always allow"/background perm not wired (tied to home-detection)
-TODO [ ]: notification/location -> the user should be able to postpone this notification. (notification gets through but the user is leaving soon and dont have time..)  # DEFERRED with geofencing (postpone action exists on the notification itself)
-TODO [x]: add new plant -> form -> we should add a NOTE to the user that we recommend that the user water the plant upon registration (even though the soil is moist), this is so that the scheduler wont be out of sync with the plant. add a checkmark for that.
-TODO [x]: palnt info -> the API provides with a ton of useful information about the plant and care-tips. please include this in the app.  # "Om arten" + care-tips cards
-TODO [*]: palnt info -> the plant profile should also include a section about relevant diseases and also importantly; pests and diseases that are common in users region.  # NOTE: Perenual dropped; Mestergrønn/Plantasjen have no pest/disease data -> section currently empty. Needs a new data source.
-TODO [x]: palnt info -> care-tips ->  I want a mini-version of care-tips at the top of caretips, it will be four round circles with [light-exposure, water-frequenzy-level, frertilization-frequenzy-level, notable-care-tag: [needs-shower | easy-care | hard-care | loves soaking | blablabla ]]
-TODO [x]: palnt info -> i the same want plant info to have a tiny mini-version of care-tips, it will be four round circles with [light-exposure, water-frequenzy-level, frertilization-frequenzy-level, notable-care-tag: [needs-shower | easy-care | hard-care | loves soaking | blablabla ]]
-
-
-
-*UPDATES (v2.0) ignore this untill all above are completed.
-TODO [ ]: _topic_ -> add: add-multiple-homes / cabins etc.
-TODO [ ]: _topic_ -> add: print overview function that can be actually printed or shared to other people (so that plant sitters can have a care-plan)
-? can this be solved in some other means; add contributors for when there are more people in a household or temporarily adding a plant-sitter 
-
-*UPDATES (v3.0) ignore this untill all above are completed.
-TODO [ ]: general -> add garden as a room (require some adjustments)
-
-
-TODO [ ]: _topic_ -> _content_
-
+/* > VERSION 3.0
+TODO [ ]: 11. [rooms][v3.0] add feat(garden) -> garden as a room type, requires some adjustments _ignore untill all above are completed_
 */
