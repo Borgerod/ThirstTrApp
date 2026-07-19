@@ -2,11 +2,30 @@
   "version": "0.2.0",
   "configurations": [
     {
-      // Fixed web port so IndexedDB (Hive storage) survives restarts.
-      // Browser storage is keyed by origin *including port*; without a pinned
-      // port `flutter run -d chrome` picks a new one each launch and the app
-      // opens a fresh, empty database every time.
-      "name": "ThirstTrApp (Chrome, fixed port)",
+      // DEFAULT for web work. Serves on a fixed port and opens your normal
+      // browser, whose profile persists. Two requirements for web data to
+      // survive restarts, both handled here:
+      //   1. Fixed port — IndexedDB (Hive storage) is scoped per origin
+      //      *including port*; a random port means a fresh empty database.
+      //   2. Unmanaged browser — `-d chrome` gives Chrome a throwaway
+      //      profile that Flutter shuffles/deletes on start/stop; data is
+      //      lost even on the right port (verified 2026-07-19).
+      // Trade-off: Dart breakpoints don't bind in web-server mode. For
+      // step-debugging use the Chrome config below — but data added in that
+      // session will NOT be kept.
+      "name": "ThirstTrApp (web, persistent)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "web-server",
+      "args": ["--web-port=5353"],
+      "serverReadyAction": {
+        "pattern": "is being served at (https?://\\S+)",
+        "uriFormat": "%s",
+        "action": "openExternally"
+      }
+    },
+    {
+      "name": "ThirstTrApp (Chrome debug, data NOT persistent)",
       "request": "launch",
       "type": "dart",
       "deviceId": "chrome",
