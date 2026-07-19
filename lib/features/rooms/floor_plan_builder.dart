@@ -262,7 +262,7 @@ class _FloorPlanBuilderState extends ConsumerState<FloorPlanBuilder> {
                   Icons.local_fire_department, e.name, width, height),
             for (final e in roomWindows)
               _chip(room, _Placeable(_Kind.window, e.id), e.floorPosition,
-                  Icons.window, e.name, width, height),
+                  e.type.icon, e.name, width, height),
             // Resize handle.
             Positioned(
               right: 0,
@@ -325,7 +325,7 @@ class _FloorPlanBuilderState extends ConsumerState<FloorPlanBuilder> {
         _paletteChip(
             _Placeable(_Kind.heat, e.id), Icons.local_fire_department, e.name),
       for (final e in windows.where((e) => e.roomId == null))
-        _paletteChip(_Placeable(_Kind.window, e.id), Icons.window, e.name),
+        _paletteChip(_Placeable(_Kind.window, e.id), e.type.icon, e.name),
     ];
     if (items.isEmpty) return const SizedBox.shrink();
     return Positioned(
