@@ -19,35 +19,60 @@ Future<void> main() async {
   await NotificationService.instance.requestPermissions();
   runApp(const ProviderScope(child: ThirstTrApp()));
 }
-/*
-                  insert tab
-                     v
-TODO [status]: number [location][sub-location-if-needed][subject] overall action -> description _explaination or comment if only needed_
+/* _______________________________ TODO SYSTEM ___________________________________
 
-TODO [ ]: 12. [objects][heat-source][form] add feat(field) -> add a select for heat source type [oil-heater, eletric-heater, fan-heater, wall-heater, heating-kabels, heat-pump, air-conditioner, fireplace,] _air-condition is a special case since its a drag-source and heat-source_
+  * FORMAT
+  TODO [status]: id. (TAG)[location][sub-location-if-needed][subject] action -> description _comment only if needed_
+
+    * STATUS  — status comes RIGHT after TODO, otherwise the colors break
+        [ ] = open (bright orange) · [x] = done (dark orange) · [*] = half-done, must carry a NOTE (status): line
+
+    * ID
+        ids are global and permanent: take the next free number, never reuse, never renumber.
+        sub-items restart at 1. inside their parent. (next free id: 12)
+
+    * TAGS  — optional, before [location]
+        (BUG) broken behaviour · (UX) polish · (PERF) performance _only (BUG) in use so far_
+
+    * LOCATIONS  — first bracket, keep to this list, extend the list here when a new one is needed
+        [general] [objects] [rooms] [add_new] [plant_list] [plant_info] [notification] [location] [engine]
+        sub-locations are free-form: [form] [profile] [heat-source] [windows] [search] [gdpr] ...
+
+    * ACTIONS
+        add feat / add / fix / update / refactor / delete / test
+
+    * VERSIONS
+        todos live in version blocks (> VERSION 1.0 / 2.0 / 3.0) below.
+        later versions are marked _ignore untill all above are completed_
+
+________________________________ RULES ________________________________________
+
+  * 1. one task = one line
+    TODO [ ]: 90. [objects][heat-source][form] add feat(field) -> select for heat source type _air-conditioner is special: both drag-source and heat-source_
+
+  * 2. multiple tasks on one subject = parent header + indented sub-items (one tab)
+    TODO [ ]: 90. [objects] update forms
+            [x]: 1. [heat-source][form] add feat(field) -> select for heat source type [oil-heater, electric-heater, fan-heater, wall-heater, heating-cables, heat-pump, air-conditioner, fireplace]
+            [ ]: 2. [room][form] update field(light-intensity) -> add "Estimate" option _triggers estimation model for light exposure_
+
+  * 3. long line? wrap it — indent the wrapped part DEEPER than the line it belongs to
+    TODO [ ]: 90. [objects][heat-source][form] add feat(field) -> select for heat source type
+                  [oil-heater, electric-heater, fan-heater, wall-heater, heating-cables, heat-pump,
+                  air-conditioner, fireplace] _air-conditioner is special: drag-source and heat-source_
+
+  * 4. half-done = [*] + indented NOTE (status): saying exactly what is left. the same amount of indentations as wrapped lines, so that the wrapped line comes after the ID, on the same line as TAGS (if any) or LOCATION (ref: 3.) 
+    TODO [*]: 90. [notification][location] GDPR always-allow geolocation -> INFORM user clearly why
+                  NOTE (status): rationale dialog done; "Tillat alltid" background permission not wired yet.
+
+  * 5. bugs/missing get a (BUG) tag, inline in their version block (no separate bug section)
+    TODO [ ]: 90. (BUG)[objects][rooms] fix climate coupling -> _blablabla_
+
+  * 6. Questions / to-be-discussed = ? line directly under the todo they block, indent the the question-line DEEPER than the line it belongs to, the same way as wrapped linnes (ref: 3.)
+    TODO [ ]: 90. [plant_list][add_new] plant-sitter sharing -> print/share care-plan
+                  ? could contributors-per-household solve this instead of print?
+
+  (all examples above use fake id 90. so they never collide with real ids)
   
-  
-* If multiple things are to be done on a subject/place
-TODO [ ]: 12. [objects] update forms 
-        [X]: 1. [heat-source][form] add feat(field) -> add a select for heat source type [oil-heater, eletric-heater, fan-heater, wall-heater, heating-kabels, heat-pump, air-conditioner, fireplace,]
-        [ ]: 2. [room][form] update field(light-intensity) -> add option to lightintensity - "Estimate" _this will trigger estimation model for light exposure_
-
-* multiline is turned on, so you are permitted to wrap the line (remember to tab)
-TODO [ ]: 12.  [objects][heat-source][form] add feat(field) -> add a select for heat source type 
-               [oil-heater, eletric-heater, fan-heater, wall-heater, heating-kabels, heat-pump, air-conditioner, fireplace,] _air-condition is a special case since its a drag-source and heat-source_
-
-
-TODO [ ]: 2. [objects][rooms] add this -> _blablabla_
-TODO [ ]: 3. [objects][windows] delete that -> _blablabla_
-TODO [ ]: 4. [plant_list][layout] refactor this -> _blablabla_
-TODO [ ]: 5. [plant_list][add_new]
-        [ ]: 1. [plant_list][bar-code] fix this -> _blablabla_
-        [ ]: 1. [plant_list][search] add that -> _blablabla_
-
-
-* bugs or missing stuff needs to have marked with a tag: 
-TODO [ ]: 2. (BUG)[objects][rooms] fix this -> _blablabla_ 
-
 */
 
 /* > VERSION 1.0
