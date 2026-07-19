@@ -81,17 +81,47 @@ enum HeatSetting {
       values.firstWhere((e) => e.id == id, orElse: () => static_);
 }
 
+/// How often a window/glass door is opened, ordered least → most open.
+///
+/// Migration: the old 3-option scale used the ids `never`/`normal`/`often`,
+/// which all exist unchanged here, so stored values map onto the new scale
+/// as-is; anything unknown falls back to [normal].
 enum OpenFrequency {
-  often('often', 'Ofte'),
+  never('never', 'Aldri'),
+  rarely('rarely', 'Sjelden'),
   normal('normal', 'Normalt'),
-  never('never', 'Aldri');
+  often('often', 'Ofte'),
+  always('always', 'Alltid');
 
   const OpenFrequency(this.id, this.label);
   final String id;
   final String label;
 
+  /// Open at least "often" — enough to drive draft/ventilation effects.
+  bool get isFrequent => index >= often.index;
+
   static OpenFrequency fromId(String? id) =>
       values.firstWhere((e) => e.id == id, orElse: () => normal);
+}
+
+/// What kind of glazed object a [WindowObject] is. Glass doors act as windows
+/// for both draft and sunlight; [glassFactor] is the glazed share of the
+/// object's area (a door with a glass panel lets roughly half the light of a
+/// fully glazed one through).
+enum WindowType {
+  window('window', 'Vindu', 1.0, Icons.window),
+  glassDoor('glass_door', 'Glassdør', 1.0, Icons.door_sliding),
+  partialGlassDoor(
+      'partial_glass_door', 'Dør med glassfelt', 0.5, Icons.door_front_door);
+
+  const WindowType(this.id, this.label, this.glassFactor, this.icon);
+  final String id;
+  final String label;
+  final double glassFactor;
+  final IconData icon;
+
+  static WindowType fromId(String? id) =>
+      values.firstWhere((e) => e.id == id, orElse: () => window);
 }
 
 enum WindowSize {

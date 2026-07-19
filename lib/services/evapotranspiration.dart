@@ -394,7 +394,7 @@ class WaterModel {
       // An often-open window near the plant pulls the local air back toward
       // outdoor humidity.
       final win = i.draftWindow ?? i.window;
-      if (win?.openFrequency == OpenFrequency.often) {
+      if (win?.openFrequency.isFrequent ?? false) {
         rh = (rh + w.humidityPct) / 2;
       }
       return Measured(rh.clamp(15, 95), ClimateSource.weather,
@@ -417,8 +417,14 @@ class WaterModel {
     if (i.plant.nearDraft) {
       final dw = i.draftWindow;
       if (dw != null && dw.openFrequency != OpenFrequency.never) {
-        final openFactor =
-            dw.openFrequency == OpenFrequency.often ? 0.15 : 0.05;
+        // Share of outdoor wind that makes it inside, by opening habit.
+        final openFactor = switch (dw.openFrequency) {
+          OpenFrequency.never => 0.0,
+          OpenFrequency.rarely => 0.03,
+          OpenFrequency.normal => 0.05,
+          OpenFrequency.often => 0.15,
+          OpenFrequency.always => 0.20,
+        };
         final outdoorMs = (weather?.windKmh ?? 12) / 3.6;
         final draft = outdoorMs * openFactor;
         if (draft > v) {
@@ -449,7 +455,7 @@ class WaterModel {
     // scaled by its flow area.
     for (final n in i.neighbours) {
       final draughty =
-          n.windows.any((w) => w.openFrequency == OpenFrequency.often) ||
+          n.windows.any((w) => w.openFrequency.isFrequent) ||
               n.heatSources.any((h) =>
                   h.type == HeatType.fanHeater || h.type == HeatType.heatPump);
       if (!draughty) continue;

@@ -163,11 +163,11 @@ TODO [ ]: 9. (BUG)[add_new][search] fix data merge -> BOTH Mestergrønn AND Plan
               missing from Mestergrønn must be covered by Plantasjen _example: "monstera" shows giftig for
               kjæledyr/barn: ukjent, but Plantasjen clearly marks it poisonous_
 
-TODO [ ]: 10. [objects]:
-        [ ]: 1. [objects][windows]: refactor form(opening-frequency) -> add more options; [never, rarely, normal, often, always].
+TODO [x]: 10. [objects]:
+        [x]: 1. [objects][windows]: refactor form(opening-frequency) -> add more options; [never, rarely, normal, often, always].
               NOTE migration: map old stored frequency values to the new 5-option scale so existing windows keep sane values.
-        [ ]: 2. [objects][windows] add object -> we need to add "glass doors" and "partial glass door" (need diffused / not-diffused options) 
-                these also need to act as windows regarding drag and sunlight. 
+        [x]: 2. [objects][windows] add object -> we need to add "glass doors" and "partial glass door" (need diffused / not-diffused options)
+                these also need to act as windows regarding drag and sunlight.
 
 TODO [ ]: 11. [home][plant-list]:
         [ ]: 1. [floorplan][plant-list][floorplan] implement floorplan -> floorplan is still not made, make it and remove "coming-soon".

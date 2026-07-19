@@ -139,10 +139,10 @@ class _WindowTab extends ConsumerWidget {
         children: [
           for (final w in windows)
             ListTile(
-              leading: const Icon(Icons.window),
+              leading: Icon(w.type.icon),
               title: Text(w.name),
               subtitle: Text(
-                  '${w.facing.label} · ${w.size.label} · ${w.resolvedIntensity.label}${w.roomId != null ? ' · ${rooms[w.roomId] ?? ''}' : ''}'),
+                  '${w.type.label} · ${w.facing.label} · ${w.size.label} · ${w.resolvedIntensity.label}${w.roomId != null ? ' · ${rooms[w.roomId] ?? ''}' : ''}'),
               trailing: IconButton(
                 icon: const Icon(Icons.delete_outline),
                 onPressed: () =>
@@ -162,9 +162,11 @@ class _WindowTab extends ConsumerWidget {
     final lux =
         TextEditingController(text: w.lightMeasurementLux?.toString() ?? '');
     var roomId = w.roomId;
+    var type = w.type;
     var facing = w.facing;
     var size = w.size;
     var open = w.openFrequency;
+    var diffused = w.diffused;
     var light = w.lightIntensity;
 
     showModalBottomSheet(
@@ -182,6 +184,8 @@ class _WindowTab extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _tf(name, 'Navn'),
+                _enumDropdown<WindowType>('Type', type, WindowType.values,
+                    (e) => e.label, (v) => setSheet(() => type = v!)),
                 _roomDropdown(rooms, roomId, (v) => setSheet(() => roomId = v)),
                 _facingDropdown(facing, (v) => setSheet(() => facing = v)),
                 _enumDropdown<WindowSize>('Størrelse', size, WindowSize.values,
@@ -192,17 +196,28 @@ class _WindowTab extends ConsumerWidget {
                     OpenFrequency.values,
                     (e) => e.label,
                     (v) => setSheet(() => open = v!)),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Frostet/diffust glass'),
+                  subtitle:
+                      const Text('Slipper inn lys, men ikke direkte sol'),
+                  value: diffused,
+                  onChanged: (v) => setSheet(() => diffused = v),
+                ),
                 _tf(lux, 'Lysmåling (lux) — valgfritt', number: true),
                 _lightDropdown(light, (v) => setSheet(() => light = v)),
                 const SizedBox(height: 12),
                 FilledButton(
                   onPressed: () {
-                    w.name =
-                        name.text.trim().isEmpty ? 'Vindu' : name.text.trim();
+                    w.name = name.text.trim().isEmpty
+                        ? type.label
+                        : name.text.trim();
                     w.roomId = roomId;
+                    w.type = type;
                     w.facing = facing;
                     w.size = size;
                     w.openFrequency = open;
+                    w.diffused = diffused;
                     w.lightMeasurementLux =
                         double.tryParse(lux.text.replaceAll(',', '.'));
                     w.lightIntensity = light;
