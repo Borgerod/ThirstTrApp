@@ -1,6 +1,7 @@
 import '../core/enums.dart';
 import '../core/json.dart';
 import '../core/plant_enums.dart';
+import '../core/retail_age.dart';
 import 'floor_position.dart';
 import 'species.dart';
 
@@ -50,6 +51,7 @@ class Plant {
     this.relativeSize,
     this.maturityBase,
     this.acquiredDate,
+    this.ageYearsAtAcquisition,
     this.condition,
     this.priceNok,
     this.receiptPath,
@@ -95,6 +97,10 @@ class Plant {
   MaturityStage? maturityBase;
   DateTime? acquiredDate;
 
+  /// User-provided age (years) at acquisition. Null = use the retail-age
+  /// estimate; a user value always wins over the estimate.
+  double? ageYearsAtAcquisition;
+
   PlantCondition? condition;
   double? priceNok;
   String? receiptPath;
@@ -132,15 +138,41 @@ class Plant {
 
   final DateTime createdAt;
 
-  /// Age since acquired, if known.
-  Duration? get age =>
+  /// Time owned — since acquired, if known.
+  Duration? get owned =>
       acquiredDate == null ? null : DateTime.now().difference(acquiredDate!);
 
+  /// Estimated retail age (years) at acquisition, from size class + species.
+  double get estimatedRetailAgeYears => RetailAge.estimateYears(
+        names: [
+          name,
+          if (species != null) ...[
+            species!.commonName,
+            ...species!.scientificName,
+            ...species!.otherNames,
+          ],
+        ],
+        size: relativeSize,
+      );
+
+  /// True when [age] rests on the retail-age estimate, not a user value.
+  bool get ageIsEstimated => ageYearsAtAcquisition == null;
+
+  /// Current age = age at acquisition (user-provided, else estimated retail
+  /// age) + time owned. Never 0 for a store-bought plant.
+  Duration get age {
+    final baseYears = ageYearsAtAcquisition ?? estimatedRetailAgeYears;
+    return Duration(
+        days: (baseYears * 365).round() + (owned?.inDays ?? 0));
+  }
+
   /// Current maturity = base stage advanced silently by years owned.
+  /// Uses [owned], not [age] — the base stage already reflects the plant's
+  /// state at acquisition.
   MaturityStage? get maturity {
     final base = maturityBase;
     if (base == null) return null;
-    final years = (age?.inDays ?? 0) / 365.0;
+    final years = (owned?.inDays ?? 0) / 365.0;
     return base.advancedBy(years);
   }
 
@@ -190,6 +222,7 @@ class Plant {
         'relativeSize': relativeSize?.id,
         'maturityBase': maturityBase?.id,
         'acquiredDate': acquiredDate?.toIso8601String(),
+        'ageYearsAtAcquisition': ageYearsAtAcquisition,
         'condition': condition?.id,
         'priceNok': priceNok,
         'receiptPath': receiptPath,
@@ -240,6 +273,7 @@ class Plant {
             : MaturityStage.fromId(
                 asString(j['maturityBase'] ?? j['maturity'])),
         acquiredDate: asDate(j['acquiredDate']),
+        ageYearsAtAcquisition: asDouble(j['ageYearsAtAcquisition']),
         condition: PlantCondition.fromId(asString(j['condition'])),
         priceNok: asDouble(j['priceNok']),
         receiptPath: asString(j['receiptPath']),
