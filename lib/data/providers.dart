@@ -205,7 +205,55 @@ final ocrProvider = Provider<OcrApi>((ref) => OcrApi());
 // ---------------------------------------------------------------------------
 class PlantsController extends Notifier<List<Plant>> {
   @override
-  List<Plant> build() => ref.read(plantRepoProvider).all();
+  List<Plant> build() {
+    final repo = ref.read(plantRepoProvider);
+    final plants = repo.all();
+    // Notes are user-only: older versions auto-copied species tips/description
+    // into them on creation. Scrub any note that is still the untouched copy
+    // (user-edited text no longer matches and is kept).
+    for (final p in plants) {
+      if (_scrubSpeciesNotes(p)) repo.save(p);
+    }
+    // Older snapshots miss facts Mestergrønn never provides (toxicity etc.);
+    // backfill them from Plantasjen in the background.
+    Future.microtask(_backfillSpeciesFacts);
+    return plants;
+  }
+
+  /// One pass over stored plants: cross-catalogue fill of missing species
+  /// facts (see [PlantCatalog.fillMissingFacts]). Silent, best-effort.
+  Future<void> _backfillSpeciesFacts() async {
+    final catalog = ref.read(catalogProvider);
+    final repo = ref.read(plantRepoProvider);
+    var changed = false;
+    for (final p in repo.all()) {
+      final s = p.species;
+      if (s == null || !s.hasMissingFacts) continue;
+      final filled = await catalog.fillMissingFacts(s);
+      if (identical(filled, s)) continue;
+      p.species = filled;
+      await repo.save(p);
+      changed = true;
+    }
+    if (changed) state = repo.all();
+  }
+
+  static bool _scrubSpeciesNotes(Plant p) {
+    final s = p.species;
+    if (s == null) return false;
+    var changed = false;
+    final prefillTips = s.careTips.map((t) => '• $t').join('\n').trim();
+    if (p.tips != null && p.tips!.trim() == prefillTips) {
+      p.tips = null;
+      changed = true;
+    }
+    if (p.generalInfo != null &&
+        p.generalInfo!.trim() == (s.description ?? '').trim()) {
+      p.generalInfo = null;
+      changed = true;
+    }
+    return changed;
+  }
 
   Future<void> save(Plant p) async {
     await ref.read(plantRepoProvider).save(p);

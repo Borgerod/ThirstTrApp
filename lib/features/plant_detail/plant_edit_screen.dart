@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/enums.dart';
+import '../../core/format.dart';
 import '../../core/plant_enums.dart';
 import '../../data/providers.dart';
 import '../../models/plant.dart';
@@ -34,6 +35,7 @@ class _PlantEditScreenState extends ConsumerState<PlantEditScreen> {
   late bool _isNew;
   final _name = TextEditingController();
   final _height = TextEditingController();
+  final _age = TextEditingController();
   final _price = TextEditingController();
   final _tips = TextEditingController();
   final _info = TextEditingController();
@@ -65,13 +67,11 @@ class _PlantEditScreenState extends ConsumerState<PlantEditScreen> {
 
       // Prefill the profile from the catalogue data (`??=` so anything the user
       // already set wins). Price is deliberately left for the user to enter.
+      // Notes (tips/generalInfo) are user-only — the app never writes them;
+      // species tips/description live on the Stelletips/Om arten tabs instead.
       final sp = widget.species;
       if (sp != null) {
         _p.heightCm ??= sp.standardHeightCm; // standard height unless user-set
-        if (sp.careTips.isNotEmpty) {
-          _p.tips ??= sp.careTips.map((t) => '• $t').join('\n');
-        }
-        _p.generalInfo ??= sp.description;
       }
     }
     final iv = _p.intervals;
@@ -82,6 +82,7 @@ class _PlantEditScreenState extends ConsumerState<PlantEditScreen> {
 
     _name.text = _p.name;
     _height.text = _p.heightCm?.toString() ?? '';
+    _age.text = _p.ageYearsAtAcquisition?.toString() ?? '';
     _price.text = _p.priceNok?.toString() ?? '';
     _tips.text = _p.tips ?? '';
     _info.text = _p.generalInfo ?? '';
@@ -90,6 +91,7 @@ class _PlantEditScreenState extends ConsumerState<PlantEditScreen> {
   Future<void> _save() async {
     _p.name = _name.text.trim().isEmpty ? 'Plante' : _name.text.trim();
     _p.heightCm = double.tryParse(_height.text.replaceAll(',', '.'));
+    _p.ageYearsAtAcquisition = double.tryParse(_age.text.replaceAll(',', '.'));
     _p.priceNok = double.tryParse(_price.text.replaceAll(',', '.'));
     _p.tips = _tips.text.trim().isEmpty ? null : _tips.text.trim();
     _p.generalInfo = _info.text.trim().isEmpty ? null : _info.text.trim();
@@ -374,6 +376,46 @@ class _PlantEditScreenState extends ConsumerState<PlantEditScreen> {
             },
           ),
 
+          // --- Age: user value wins, else retail-age estimate. A store-bought
+          // plant is never 0 years old — growers sell them juvenile. ---
+          Builder(builder: (context) {
+            final est = _p.estimatedRetailAgeYears;
+            final typed = double.tryParse(_age.text.replaceAll(',', '.'));
+            final baseYears = typed ?? est;
+            final totalNow = Duration(
+                days: (baseYears * 365).round() + (_p.owned?.inDays ?? 0));
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: TextField(
+                    controller: _age,
+                    keyboardType: TextInputType.number,
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      labelText: 'Alder ved anskaffelse (år)',
+                      hintText:
+                          'Auto — estimert ${Fmt.age(Duration(days: (est * 365).round()))}',
+                      helperText:
+                          'Tomt felt = appen estimerer ut fra størrelse og art. '
+                          'Egen verdi vinner alltid.',
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 4),
+                  child: Text(
+                    'Alder nå: ${Fmt.age(totalNow)}'
+                    '${typed == null ? ' (estimert)' : ''}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              ],
+            );
+          }),
+
           _sectionTitle('Tilstand, pris og kvittering'),
           _dropdown<PlantCondition?>(
             'Tilstand',
@@ -439,9 +481,10 @@ class _PlantEditScreenState extends ConsumerState<PlantEditScreen> {
             ),
           ),
 
-          _sectionTitle('Notater'),
-          _field(_info, 'Generell info', maxLines: 3),
-          _field(_tips, 'Tips', maxLines: 3),
+          // --- Notes: user-only free text; the app never writes here ---
+          _sectionTitle('Mine notater'),
+          _field(_info, 'Generell info (kun dine egne notater)', maxLines: 3),
+          _field(_tips, 'Tips (kun dine egne notater)', maxLines: 3),
           const SizedBox(height: 32),
           FilledButton.icon(
             onPressed: _save,

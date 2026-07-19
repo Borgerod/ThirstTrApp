@@ -82,9 +82,9 @@ class AddPlantScreen extends ConsumerWidget {
     Species? species;
     try {
       if (pidMatch != null) {
-        species = await ref
+        species = await catalog.fillMissingFacts(await ref
             .read(mestergronnProvider)
-            .enrichedSpecies(int.parse(pidMatch.group(1)!));
+            .enrichedSpecies(int.parse(pidMatch.group(1)!)));
       } else if (isEan) {
         species = await catalog.byEan(code);
       } else {

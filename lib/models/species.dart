@@ -129,6 +129,42 @@ class Species {
     return CareTag.easyCare;
   }
 
+  /// True when profile facts another catalogue could provide are still absent
+  /// (toxicity above all — Mestergrønn products never state it).
+  bool get hasMissingFacts =>
+      poisonousToPets == null ||
+      poisonousToHumans == null ||
+      wateringWord == null ||
+      sunlight.isEmpty;
+
+  /// Fill the gaps in this species with facts from [other] (same plant found
+  /// in another catalogue). Identity fields (id, name, image, source) stay
+  /// ours; only absent facts are copied.
+  Species mergeMissingFrom(Species other) => Species(
+        id: id,
+        commonName: commonName,
+        scientificName:
+            scientificName.isNotEmpty ? scientificName : other.scientificName,
+        otherNames: otherNames.isNotEmpty ? otherNames : other.otherNames,
+        cycle: cycle ?? other.cycle,
+        wateringWord: wateringWord ?? other.wateringWord,
+        wateringBenchmarkValue:
+            wateringBenchmarkValue ?? other.wateringBenchmarkValue,
+        wateringBenchmarkUnit:
+            wateringBenchmarkUnit ?? other.wateringBenchmarkUnit,
+        sunlight: sunlight.isNotEmpty ? sunlight : other.sunlight,
+        imageUrl: imageUrl ?? other.imageUrl,
+        careLevel: careLevel ?? other.careLevel,
+        description: description ?? other.description,
+        poisonousToPets: poisonousToPets ?? other.poisonousToPets,
+        poisonousToHumans: poisonousToHumans ?? other.poisonousToHumans,
+        indoor: indoor ?? other.indoor,
+        careGuide: careGuide.isNotEmpty ? careGuide : other.careGuide,
+        careTips: careTips.isNotEmpty ? careTips : other.careTips,
+        standardHeightCm: standardHeightCm ?? other.standardHeightCm,
+        source: source,
+      );
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'commonName': commonName,
