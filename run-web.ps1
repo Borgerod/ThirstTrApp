@@ -1,11 +1,17 @@
-# Run ThirstTrApp on the web with a STABLE origin so saved data persists.
+# Run ThirstTrApp on the web with data that ACTUALLY persists.
 #
-# Browser storage (IndexedDB, where Hive keeps rooms/plants/windows/heat
-# sources/floorplan/watered-status) is scoped per origin *including the port*.
-# A plain `flutter run -d chrome` picks a random port each launch and opens an
-# empty database every time. Pinning the port keeps one persistent database.
+# Two things are required, and this script does both:
+#   1. Stable origin: browser storage (IndexedDB, where Hive keeps
+#      rooms/plants/windows/heat sources/floorplan/watered-status) is scoped
+#      per origin *including the port* — so the port is pinned to 5353.
+#   2. A browser Flutter does NOT manage: `flutter run -d chrome` gives Chrome
+#      a throwaway profile and shuffles it around on every start/stop — data
+#      written there gets lost even on the right port (verified 2026-07-19).
+#      So we serve with `-d web-server` and open your normal browser, whose
+#      profile survives anything, including killing the terminal mid-run.
 #
 # Usage:  ./run-web.ps1        (from the project root, in PowerShell)
+#         hot reload: press r in this terminal; refresh the browser tab.
 #
 # Also starts the local CORS proxy in the background so Mestergrønn search and
 # plant images load on web. Native builds don't need any of this — just run
@@ -26,5 +32,18 @@ if (-not $proxyUp) {
     Write-Host "CORS proxy already running on :$proxyPort." -ForegroundColor DarkGray
 }
 
-Write-Host "Launching app on http://localhost:$webPort (persistent storage)" -ForegroundColor Green
-flutter run -d chrome --web-port=$webPort
+# Open the user's default browser once the dev server is listening.
+Start-Job -ScriptBlock {
+    param($port)
+    $deadline = (Get-Date).AddMinutes(5)
+    while ((Get-Date) -lt $deadline) {
+        if (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue) {
+            Start-Process "http://localhost:$port"
+            return
+        }
+        Start-Sleep -Seconds 2
+    }
+} -ArgumentList $webPort | Out-Null
+
+Write-Host "Serving app on http://localhost:$webPort (persistent storage, opens in your browser)" -ForegroundColor Green
+flutter run -d web-server --web-port=$webPort

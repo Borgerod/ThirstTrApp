@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,6 +51,55 @@ class _ThirstTrAppState extends ConsumerState<ThirstTrApp> {
         useMaterial3: true,
       ),
       home: const RootShell(),
+      builder: (context, child) => _VolatileOriginGuard(child: child!),
+    );
+  }
+}
+
+/// Dev-only tripwire for the web data-wipe trap: browser storage is scoped per
+/// origin *including port*, so a `flutter run -d chrome` without
+/// `--web-port=5353` opens a fresh, empty IndexedDB and everything saved there
+/// is stranded when the next launch picks another random port. Use
+/// `run-web.ps1` or the "fixed port" VS Code launch config instead.
+class _VolatileOriginGuard extends StatelessWidget {
+  const _VolatileOriginGuard({required this.child});
+
+  final Widget child;
+
+  static const _devWebPort = 5353;
+
+  bool get _volatile => kIsWeb && kDebugMode && Uri.base.port != _devWebPort;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_volatile) return child;
+    return Column(
+      children: [
+        Material(
+          color: Colors.red.shade700,
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Data lagres IKKE: appen kjører på port '
+                      '${Uri.base.port}, ikke $_devWebPort. '
+                      'Start med run-web.ps1 (eller F5-configen) i stedet.',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Expanded(child: child),
+      ],
     );
   }
 }
